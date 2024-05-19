@@ -1,0 +1,21 @@
+.reveal p {
+    text-align: left;
+}
+
+.slide-footer {
+    /* text-align: left; */
+    position: absolute;
+    bottom: 0%;
+    left: 0%;
+}
+
+/* Align things left */
+.reveal p {
+text-align: left;
+}
+.reveal ul {
+display: block;
+}
+.reveal ol {
+display: block;
+}

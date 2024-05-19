@@ -1,0 +1,310 @@
+#+Title: ghc-exactprint (HEW 2024)
+#+Author: Alan Zimmerman
+#+Email: @alanz@social.coop
+
+#+REVEAL_TITLE_SLIDE:
+# #+REVEAL_SLIDE_FOOTER: Haskell Ecosystem Workshop, ZuriHac 2024
+
+#+REVEAL_INIT_OPTIONS: width:1200, height:800, margin: 0.1, minScale:0.2, maxScale:2.5
+#+OPTIONS: num:nil
+#+OPTIONS: reveal_slide_number:c/t
+#+OPTIONS: toc:1
+#+OPTIONS: reveal_center:nil
+# #+REVEAL_THEME: simple
+# #+REVEAL_THEME: white-contrast
+#+REVEAL_THEME: white_contrast_compact_verbatim_headers
+#+REVEAL_HLEVEL: 2
+#+REVEAL_TRANS: linear
+#+REVEAL_PLUGINS: (markdown notes )
+#+REVEAL_EXTRA_CSS: ./local.css
+#+PROPERTY: header-args    :results silent
+#+PROPERTY: header-args    :exports code
+
+#+ATTR_REVEAL: :reveal_slide_global_footer 'footer hello'
+* ghc-exactprint
+
+Alan Zimmerman
+
+[[https://twitter.com/@alan_zimm][src_haskell{@alanz@social.coop}]]
+
+#+begin_src
+Haskell Ecosystem Workshop,
+ZuriHac, 2024-06-07
+#+end_src
+
+* About Me
+- Learned Haskell in 2012
+- First GHC commit Sep 2014
+- Decided to resurrect HaRe, using GHC backend
+- Led to haskell-ide-engine, to expose it to users
+- And into GHC to make it useful for this
+
+* This Talk
+- Overview of the problem being solved
+- What it means inside GHC
+- What it means outside GHC
+
+* Problem Being Solved
+To allow a tool to
+- start from a GHC ParsedSource,
+- make changes to it,
+- print source reflecting the changes.
+- And only the changes.
+
+** Start from GHC ParsedSource
+- It must accurately reflect the input source
+- Literals
+  Add detail: (AZ note, see LiteralsTest.hs in testsuite)
+- ‘Trivia’
+  Things like keywords, commas, semicolons, brackets of all kinds
+- Spacing - via SrcSpan
+
+** Literals Detail
+TBD
+(AZ note, see LiteralsTest.hs in testsuite, and HIW2021 slide)
+
+** Capturing Trivia
+TBD
+
+** Spacing
+- Spacing is a funny thing.
+- To start with, it is just a given. This is where things are in the source, all wrapped in a SrcSpan
+- But when you change things it gets complicated
+  - Add or delete lines
+  - Move a block of code from one place to another
+    - Which can also change its indentation
+
+** Principles for Spacing
+- A located AST element is treated as a unit
+  - We believe its span start point
+  - We believe its span end point
+  - Nothing is printed outside its span
+- In other words, it is internally consistent
+  - If we apply a constant (line,col) offset to the whole thing, it
+    will still print properly
+- Implication
+  - If we do some book-keeping about the start offset, we can print it
+    anywhere
+
+** Spacing : the trick
+- An internally consistent AST element has absolute locations
+- But when we print, we have a print head that we advance
+- By distances calculated from the absolute locations
+So
+- We track two locations
+  - The output print position, which always advances as we print
+  - The offset calculation position, which we reset every time we enter a span
+    - (remember “we believe the start position of a span”)
+  - And also set every time we exit a span (“belief”)
+  - Otherwise it also advances as we print
+
+** Spacing : the missing piece
+There is one remaining problem
+- How do we change things?
+  - If we delete, there will be a gap
+  - If we add something, there will be some kind of jump
+- Deltas
+  - At the point where we change from one internally consistent point
+    to another, we supply the delta directly
+  - Instead of calculating it from the offset calculation position.
+  - And then set the offset calculation position according to the next
+    actual span we see
+  - We believe the start position in a span
+  - It will come after a delta, so the spacing is known
+
+
+** Spacing : size changes
+
+- A typical change is to rename a variable.
+- The name may be longer or shorter.
+- The spacing calculation to the start point is unchanged, so all is good
+- When we finish, we set the offset calculation position to the end of the span
+  (We believe the end position)
+- And so following spacing calculations are unaffected.
+
+** Spacing : size changes 2
+
+- The same principle holds for bigger changes.
+- If we add additional content inside a span, it does not matter,
+- The “contract” with the surroundings is the start of the span for
+  entry spacing
+- And the end of the span for exit spacing
+
+** Spacing : layout
+
+Haskell is a layout-sensitive language
+
+AZ Note: Do we need this slide?
+         We will have to go down a rabbit hole for it
+
+
+** Order in lists
+
+- src_haskell{ParsedSource} is not a completely accurate reflection of the original source.
+- src_haskell{ValBinds} separates out src_haskell{Sig}s and src_haskell{Bind}s
+- src_haskell{ClsInstDecl} separates out src_haskell{Bind}s,
+  src_haskell{Sig}s, Type family instances and Data family instances
+- For both of these, the original source can have them in any order.
+
+** Order in lists 2
+ AST implements “Trees That Grow”
+This means extra information can be carried, computed via type classes
+Used for Exact Print Annotations (EPA)
+Uses two mechanisms
+XRec for Located things
+TTG extension points for the rest
+
+- For an unmodified AST there is no problem, you just sort by start of
+  span.
+- But a modified one may have rearranged the existing ones, or brought
+  in ones from elsewhere.
+- And may have adjusted the spacing with explicit deltas.
+
+** Order in lists 3 : Solution
+
+- Each specific list is physically ordered, so for src_haskell{ValBinds} we know
+  the order of the sigs, and of the binds.
+- But we don’t know the interleaving.
+- We supply this in an src_haskell{AnnSortKey}, which drives a merge process.
+- It keeps a list of src_haskell{SigDTag} or src_haskell{BindTag} for
+  a src_haskell{ValBind}, telling which list to draw from each time.
+
+** Comments
+- Comments are the ultimate “trivia”. They have no influence on
+  overall spacing and layout, but need to be preserved precisely.
+- They can also occur absolutely anywhere in the source file.
+- So we keep them in the "src_haskell{SrcSpan} on steroids" we wrap
+  everything in, and fit them in when we print, if they fit into the
+  current gap.
+- It’s more complicated than that, but we will look into detail later.
+
+** Trailing Items
+- The consistency belief we base everything on is that everything fits
+  inside the AST Element span.
+- This is true for everything, except trailing items.
+- If you consider a list of items, each item is a standalone entity
+- The commas exist as part of the surrounding structure.
+- So if you move the item elsewhere, or replace it with something
+  else, the trailing comma should be managed as part of that location.
+- Others are semicolons, vertical bars, single and double arrows
+
+
+** End of Hand Wavy Part
+
+- Hopefully you now have a high level understanding of what the exact
+  print annotations are for.
+- Now we can look into some details of how things are captured.
+
+
+* What it means inside GHC
+Time to dive into the detail. Two main divisions
+- Located things
+- Internal Annotations
+
+** Trees That Grow
+- GHC AST implements “Trees That Grow”
+- This means extra information can be carried, computed via type classes
+- Used for Exact Print Annotations (EPA)
+- Uses two mechanisms
+  - src_haskell{XRec} for Located things [AZ note: not part of TTG]
+  - TTG extension points for the rest
+
+** Terminology
+- AST: src_haskell{ParsedSource}
+
+#+begin_src haskell
+type ParsedSource = Located (HsModule GhcPs)
+#+end_src
+
+For now we accept src_haskell{GhcPs} as simply a marker of the AST from the
+parsing phase.
+
+** Located Things
+
+The AST is layered, in that alternate layer ...
+
+*** Location
+
+#+begin_src haskell
+type family XRec p a = r | r -> a
+#+end_src
+
+#+ATTR_REVEAL: :frag t
+#+begin_src haskell
+type family Anno a = b
+#+end_src
+
+#+ATTR_REVEAL: :frag t
+#+begin_src haskell
+type instance XRec (GhcPass p) a = GenLocated (Anno a) a
+#+end_src
+
+#+ATTR_REVEAL: :frag t
+#+begin_src haskell
+type instance Anno (HsExpr (GhcPass p)) = SrcSpanAnnA
+type LocatedA = GenLocated SrcSpanAnnA
+#+end_src
+
+#+ATTR_REVEAL: :frag t
+#+begin_src haskell
+type SrcSpanAnnA = EpAnn AnnListItem
+#+end_src
+
+*** EpAnn
+
+#+begin_src haskell
+data EpAnn ann = EpAnn
+         { entry    :: !Anchor -- basically SrcSpan when parsed
+         , anns     :: !ann
+         , comments :: !EpAnnComments
+         }
+type Anchor = EpaLocation
+#+end_src
+
+#+ATTR_REVEAL: :frag t
+#+begin_src haskell
+type EpaLocation = EpaLocation' [LEpaComment]
+data EpaLocation' a = EpaSpan !SrcSpan
+                    | EpaDelta !DeltaPos !a
+#+end_src
+
+*** src_haskell{AnnListItem}
+
+#+begin_src haskell
+-- | Annotation for items appearing in a list. They can have one or
+-- more trailing punctuations items, such as commas or semicolons.
+data AnnListItem
+  = AnnListItem {
+      lann_trailing  :: [TrailingAnn]
+      }
+#+end_src
+
+*** Sanity check
+
+Tie up to prior hand wavy part
+   #+begin_example
+   (L
+    (EpAnn
+     (EpaSpan { DumpParsedAst.hs:5:1-16 })
+     (AnnListItem
+      [])
+     (EpaComments
+      []))
+      ...
+   #+end_example
+
+- src_haskell{SrcSpan} we "believe" is the one in the
+  src_haskell{EpAnn} src_haskell{entry}, using the
+  src_haskell{EpaSpan} constructor.
+- If we need to move things around, the surgery happens by replacing
+  it with an appropriate src_haskell{EpaDelta} version, just for the
+  point where the change happens.
+
+#+begin_notes
+- After this deep dive into types, let's come up for air a bit.
+- If you recall in the handwavy part we spoke about span being the
+  source of truth, the thing we believe.
+- For ghc-exactprint old hands, makeDeltaAst is no longer required (but still exists)
+#+end_notes
+
+** "Trivia"

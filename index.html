@@ -1,40 +1,593 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<head>
+<meta charset="utf-8"/>
+<title>ghc-exactprint (HEW 2024)</title>
+<meta name="author" content="Alan Zimmerman"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="./reveal.js/dist/reveal.css"/>
 
-		<title>reveal.js</title>
+<link rel="stylesheet" href="./reveal.js/dist/theme/white_contrast_compact_verbatim_headers.css" id="theme"/>
 
-		<link rel="stylesheet" href="dist/reset.css">
-		<link rel="stylesheet" href="dist/reveal.css">
-		<link rel="stylesheet" href="dist/theme/black.css">
+<link rel="stylesheet" href="./local.css"/>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="table-of-contents-section">
+<div id="table-of-contents" role="doc-toc">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents" role="doc-toc">
+<ul>
+<li><a href="#slide-org5955d81">ghc-exactprint</a></li>
+<li><a href="#slide-org1536683">About Me</a></li>
+<li><a href="#slide-org88e15ff">This Talk</a></li>
+<li><a href="#slide-org4829132">Problem Being Solved</a></li>
+<li><a href="#slide-orgce2fec6">What it means inside GHC</a></li>
+</ul>
+</div>
+</div>
+</section>
+<section>
+<section id="slide-org5955d81">
+<h2 id="org5955d81">ghc-exactprint</h2>
+<p>
+Alan Zimmerman
+</p>
 
-		<!-- Theme used for syntax highlighted code -->
-		<link rel="stylesheet" href="plugin/highlight/monokai.css">
-	</head>
-	<body>
-		<div class="reveal">
-			<div class="slides">
-				<section>Slide 1</section>
-				<section>Slide 2</section>
-			</div>
-		</div>
+<p>
+<a href="https://twitter.com/@alan_zimm"><code class="src src-haskell"><span style="color: #a0522d;">@</span>alanz<span style="color: #a0522d;">@</span>social<span style="color: #a0522d;">.</span>coop</code></a>
+</p>
 
-		<script src="dist/reveal.js"></script>
-		<script src="plugin/notes/notes.js"></script>
-		<script src="plugin/markdown/markdown.js"></script>
-		<script src="plugin/highlight/highlight.js"></script>
-		<script>
-			// More info about initialization & config:
-			// - https://revealjs.com/initialization/
-			// - https://revealjs.com/config/
-			Reveal.initialize({
-				hash: true,
+<pre class="example">
+Haskell Ecosystem Workshop,
+ZuriHac, 2024-06-07
+</pre>
 
-				// Learn about plugins: https://revealjs.com/plugins/
-				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
-			});
-		</script>
-	</body>
+
+</section>
+</section>
+<section>
+<section id="slide-org1536683">
+<h2 id="org1536683">About Me</h2>
+<ul>
+<li>Learned Haskell in 2012</li>
+<li>First GHC commit Sep 2014</li>
+<li>Decided to resurrect HaRe, using GHC backend</li>
+<li>Led to haskell-ide-engine, to expose it to users</li>
+<li>And into GHC to make it useful for this</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org88e15ff">
+<h2 id="org88e15ff">This Talk</h2>
+<ul>
+<li>Overview of the problem being solved</li>
+<li>What it means inside GHC</li>
+<li>What it means outside GHC</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org4829132">
+<h2 id="org4829132">Problem Being Solved</h2>
+<p>
+To allow a tool to
+</p>
+<ul>
+<li>start from a GHC ParsedSource,</li>
+<li>make changes to it,</li>
+<li>print source reflecting the changes.</li>
+<li>And only the changes.</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org10e94cd">
+<h3 id="org10e94cd">Start from GHC ParsedSource</h3>
+<ul>
+<li>It must accurately reflect the input source</li>
+<li>Literals
+Add detail: (AZ note, see LiteralsTest.hs in testsuite)</li>
+<li>‘Trivia’
+Things like keywords, commas, semicolons, brackets of all kinds</li>
+<li>Spacing - via SrcSpan</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-orgeb99e64">
+<h3 id="orgeb99e64">Literals Detail</h3>
+<p>
+TBD
+(AZ note, see LiteralsTest.hs in testsuite, and HIW2021 slide)
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-orge7d1e52">
+<h3 id="orge7d1e52">Capturing Trivia</h3>
+<p>
+TBD
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-orgc4876a2">
+<h3 id="orgc4876a2">Spacing</h3>
+<ul>
+<li>Spacing is a funny thing.</li>
+<li>To start with, it is just a given. This is where things are in the source, all wrapped in a SrcSpan</li>
+<li>But when you change things it gets complicated
+<ul>
+<li>Add or delete lines</li>
+<li>Move a block of code from one place to another
+<ul>
+<li>Which can also change its indentation</li>
+
+</ul></li>
+
+</ul></li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org7b1f0a2">
+<h3 id="org7b1f0a2">Principles for Spacing</h3>
+<ul>
+<li>A located AST element is treated as a unit
+<ul>
+<li>We believe its span start point</li>
+<li>We believe its span end point</li>
+<li>Nothing is printed outside its span</li>
+
+</ul></li>
+<li>In other words, it is internally consistent
+<ul>
+<li>If we apply a constant (line,col) offset to the whole thing, it
+will still print properly</li>
+
+</ul></li>
+<li>Implication
+<ul>
+<li>If we do some book-keeping about the start offset, we can print it
+anywhere</li>
+
+</ul></li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org15e85de">
+<h3 id="org15e85de">Spacing : the trick</h3>
+<ul>
+<li>An internally consistent AST element has absolute locations</li>
+<li>But when we print, we have a print head that we advance</li>
+<li>By distances calculated from the absolute locations</li>
+
+</ul>
+<p>
+So
+</p>
+<ul>
+<li>We track two locations
+<ul>
+<li>The output print position, which always advances as we print</li>
+<li>The offset calculation position, which we reset every time we enter a span
+<ul>
+<li>(remember “we believe the start position of a span”)</li>
+
+</ul></li>
+<li>And also set every time we exit a span (“belief”)</li>
+<li>Otherwise it also advances as we print</li>
+
+</ul></li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org89b1fd4">
+<h3 id="org89b1fd4">Spacing : the missing piece</h3>
+<p>
+There is one remaining problem
+</p>
+<ul>
+<li>How do we change things?
+<ul>
+<li>If we delete, there will be a gap</li>
+<li>If we add something, there will be some kind of jump</li>
+
+</ul></li>
+<li>Deltas
+<ul>
+<li>At the point where we change from one internally consistent point
+to another, we supply the delta directly</li>
+<li>Instead of calculating it from the offset calculation position.</li>
+<li>And then set the offset calculation position according to the next
+actual span we see</li>
+<li>We believe the start position in a span</li>
+<li>It will come after a delta, so the spacing is known</li>
+
+</ul></li>
+
+</ul>
+
+
+</section>
+</section>
+<section>
+<section id="slide-org6c48506">
+<h3 id="org6c48506">Spacing : size changes</h3>
+<ul>
+<li>A typical change is to rename a variable.</li>
+<li>The name may be longer or shorter.</li>
+<li>The spacing calculation to the start point is unchanged, so all is good</li>
+<li>When we finish, we set the offset calculation position to the end of the span
+(We believe the end position)</li>
+<li>And so following spacing calculations are unaffected.</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-orgf6a9a78">
+<h3 id="orgf6a9a78">Spacing : size changes 2</h3>
+<ul>
+<li>The same principle holds for bigger changes.</li>
+<li>If we add additional content inside a span, it does not matter,</li>
+<li>The “contract” with the surroundings is the start of the span for
+entry spacing</li>
+<li>And the end of the span for exit spacing</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org786d62e">
+<h3 id="org786d62e">Spacing : layout</h3>
+<p>
+Haskell is a layout-sensitive language
+</p>
+
+<p>
+AZ Note: Do we need this slide?
+         We will have to go down a rabbit hole for it
+</p>
+
+
+</section>
+</section>
+<section>
+<section id="slide-org9b9ca33">
+<h3 id="org9b9ca33">Order in lists</h3>
+<ul>
+<li><code class="src src-haskell"><span style="color: #228b22;">ParsedSource</span></code> is not a completely accurate reflection of the original source.</li>
+<li><code class="src src-haskell"><span style="color: #228b22;">ValBinds</span></code> separates out <code class="src src-haskell"><span style="color: #228b22;">Sig</span></code>s and <code class="src src-haskell"><span style="color: #228b22;">Bind</span></code>s</li>
+<li><code class="src src-haskell"><span style="color: #228b22;">ClsInstDecl</span></code> separates out <code class="src src-haskell"><span style="color: #228b22;">Bind</span></code>s,
+<code class="src src-haskell"><span style="color: #228b22;">Sig</span></code>s, Type family instances and Data family instances</li>
+<li>For both of these, the original source can have them in any order.</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-orgbed2707">
+<h3 id="orgbed2707">Order in lists 2</h3>
+<p>
+ AST implements “Trees That Grow”
+This means extra information can be carried, computed via type classes
+Used for Exact Print Annotations (EPA)
+Uses two mechanisms
+XRec for Located things
+TTG extension points for the rest
+</p>
+
+<ul>
+<li>For an unmodified AST there is no problem, you just sort by start of
+span.</li>
+<li>But a modified one may have rearranged the existing ones, or brought
+in ones from elsewhere.</li>
+<li>And may have adjusted the spacing with explicit deltas.</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org0a89f67">
+<h3 id="org0a89f67">Order in lists 3 : Solution</h3>
+<ul>
+<li>Each specific list is physically ordered, so for <code class="src src-haskell"><span style="color: #228b22;">ValBinds</span></code> we know
+the order of the sigs, and of the binds.</li>
+<li>But we don’t know the interleaving.</li>
+<li>We supply this in an <code class="src src-haskell"><span style="color: #228b22;">AnnSortKey</span></code>, which drives a merge process.</li>
+<li>It keeps a list of <code class="src src-haskell"><span style="color: #228b22;">SigDTag</span></code> or <code class="src src-haskell"><span style="color: #228b22;">BindTag</span></code> for
+a <code class="src src-haskell"><span style="color: #228b22;">ValBind</span></code>, telling which list to draw from each time.</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org11aaaa4">
+<h3 id="org11aaaa4">Comments</h3>
+<ul>
+<li>Comments are the ultimate “trivia”. They have no influence on
+overall spacing and layout, but need to be preserved precisely.</li>
+<li>They can also occur absolutely anywhere in the source file.</li>
+<li>So we keep them in the "<code class="src src-haskell"><span style="color: #228b22;">SrcSpan</span></code> on steroids" we wrap
+everything in, and fit them in when we print, if they fit into the
+current gap.</li>
+<li>It’s more complicated than that, but we will look into detail later.</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org6ac163c">
+<h3 id="org6ac163c">Trailing Items</h3>
+<ul>
+<li>The consistency belief we base everything on is that everything fits
+inside the AST Element span.</li>
+<li>This is true for everything, except trailing items.</li>
+<li>If you consider a list of items, each item is a standalone entity</li>
+<li>The commas exist as part of the surrounding structure.</li>
+<li>So if you move the item elsewhere, or replace it with something
+else, the trailing comma should be managed as part of that location.</li>
+<li>Others are semicolons, vertical bars, single and double arrows</li>
+
+</ul>
+
+
+</section>
+</section>
+<section>
+<section id="slide-org04113b7">
+<h3 id="org04113b7">End of Hand Wavy Part</h3>
+<ul>
+<li>Hopefully you now have a high level understanding of what the exact
+print annotations are for.</li>
+<li>Now we can look into some details of how things are captured.</li>
+
+</ul>
+
+
+</section>
+</section>
+<section>
+<section id="slide-orgce2fec6">
+<h2 id="orgce2fec6">What it means inside GHC</h2>
+<p>
+Time to dive into the detail. Two main divisions
+</p>
+<ul>
+<li>Located things</li>
+<li>Internal Annotations</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org8e4b9a5">
+<h3 id="org8e4b9a5">Trees That Grow</h3>
+<ul>
+<li>GHC AST implements “Trees That Grow”</li>
+<li>This means extra information can be carried, computed via type classes</li>
+<li>Used for Exact Print Annotations (EPA)</li>
+<li>Uses two mechanisms
+<ul>
+<li><code class="src src-haskell"><span style="color: #228b22;">XRec</span></code> for Located things [AZ note: not part of TTG]</li>
+<li>TTG extension points for the rest</li>
+
+</ul></li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org0fd2ecd">
+<h3 id="org0fd2ecd">Terminology</h3>
+<ul>
+<li>AST: <code class="src src-haskell"><span style="color: #228b22;">ParsedSource</span></code></li>
+
+</ul>
+
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #a020f0;">type</span> <span style="color: #228b22;">ParsedSource</span> <span style="color: #a0522d;">=</span> <span style="color: #228b22;">Located</span> (<span style="color: #228b22;">HsModule</span> <span style="color: #228b22;">GhcPs</span>)
+</pre>
+</div>
+
+<p>
+For now we accept <code class="src src-haskell"><span style="color: #228b22;">GhcPs</span></code> as simply a marker of the AST from the
+parsing phase.
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-org39e6d4c">
+<h3 id="org39e6d4c">Located Things</h3>
+<p>
+The AST is layered, in that alternate layer &#x2026;
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-org878f5e3">
+<h3 id="org878f5e3">Location</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #a020f0;">type</span> <span style="color: #a020f0;">family</span> <span style="color: #228b22;">XRec</span> p a <span style="color: #a0522d;">=</span> r <span style="color: #a0522d;">|</span> r <span style="color: #a0522d;">-&gt;</span> a
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre class="fragment"><span style="color: #a020f0;">type</span> <span style="color: #a020f0;">family</span> <span style="color: #228b22;">Anno</span> a <span style="color: #a0522d;">=</span> b
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre class="fragment"><span style="color: #a020f0;">type</span> <span style="color: #a020f0;">instance</span> <span style="color: #228b22;">XRec</span> (<span style="color: #228b22;">GhcPass</span> p) a <span style="color: #a0522d;">=</span> <span style="color: #228b22;">GenLocated</span> (<span style="color: #228b22;">Anno</span> a) a
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre class="fragment"><span style="color: #a020f0;">type</span> <span style="color: #a020f0;">instance</span> <span style="color: #228b22;">Anno</span> (<span style="color: #228b22;">HsExpr</span> (<span style="color: #228b22;">GhcPass</span> p)) <span style="color: #a0522d;">=</span> <span style="color: #228b22;">SrcSpanAnnA</span>
+<span style="color: #a020f0;">type</span> <span style="color: #228b22;">LocatedA</span> <span style="color: #a0522d;">=</span> <span style="color: #228b22;">GenLocated</span> <span style="color: #228b22;">SrcSpanAnnA</span>
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre class="fragment"><span style="color: #a020f0;">type</span> <span style="color: #228b22;">SrcSpanAnnA</span> <span style="color: #a0522d;">=</span> <span style="color: #228b22;">EpAnn</span> <span style="color: #228b22;">AnnListItem</span>
+</pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-orgcc2f3ad">
+<h3 id="orgcc2f3ad">EpAnn</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #a020f0;">data</span> <span style="color: #228b22;">EpAnn</span> ann <span style="color: #a0522d;">=</span> <span style="color: #228b22;">EpAnn</span>
+         { entry    <span style="color: #a0522d;">::</span> <span style="color: #a0522d;">!</span><span style="color: #228b22;">Anchor</span> <span style="color: #b22222;">-- </span><span style="color: #b22222;">basically SrcSpan when parsed</span>
+         , anns     <span style="color: #a0522d;">::</span> <span style="color: #a0522d;">!</span>ann
+         , comments <span style="color: #a0522d;">::</span> <span style="color: #a0522d;">!</span><span style="color: #228b22;">EpAnnComments</span>
+         }
+<span style="color: #a020f0;">type</span> <span style="color: #228b22;">Anchor</span> <span style="color: #a0522d;">=</span> <span style="color: #228b22;">EpaLocation</span>
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre class="fragment"><span style="color: #a020f0;">type</span> <span style="color: #228b22;">EpaLocation</span> <span style="color: #a0522d;">=</span> <span style="color: #228b22;">EpaLocation'</span> [<span style="color: #228b22;">LEpaComment</span>]
+<span style="color: #a020f0;">data</span> <span style="color: #228b22;">EpaLocation'</span> a <span style="color: #a0522d;">=</span> <span style="color: #228b22;">EpaSpan</span> <span style="color: #a0522d;">!</span><span style="color: #228b22;">SrcSpan</span>
+                    <span style="color: #a0522d;">|</span> <span style="color: #228b22;">EpaDelta</span> <span style="color: #a0522d;">!</span><span style="color: #228b22;">DeltaPos</span> <span style="color: #a0522d;">!</span>a
+</pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-org0fd8f64">
+<h3 id="org0fd8f64"><code class="src src-haskell"><span style="color: #228b22;">AnnListItem</span></code></h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #8b2252;">-- | Annotation for items appearing in a list. They can have one or</span>
+<span style="color: #8b2252;">-- more trailing punctuations items, such as commas or semicolons.</span>
+<span style="color: #a020f0;">data</span> <span style="color: #228b22;">AnnListItem</span>
+  <span style="color: #a0522d;">=</span> <span style="color: #228b22;">AnnListItem</span> {
+      lann_trailing  <span style="color: #a0522d;">::</span> [<span style="color: #228b22;">TrailingAnn</span>]
+      }
+</pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-org34fa390">
+<h3 id="org34fa390">Sanity check</h3>
+<p>
+Tie up to prior hand wavy part
+</p>
+<pre class="example" id="org4f274e0">
+(L
+ (EpAnn
+  src_haskell{(EpaSpan { DumpParsedAst.hs:5:1-16 })}
+  (AnnListItem
+   [])
+  (EpaComments
+   []))
+   ...
+</pre>
+
+<ul>
+<li><code class="src src-haskell"><span style="color: #228b22;">SrcSpan</span></code> we "believe" is the one in the
+<code class="src src-haskell"><span style="color: #228b22;">EpAnn</span></code> <code class="src src-haskell">entry</code>, using the
+<code class="src src-haskell"><span style="color: #228b22;">EpaSpan</span></code> constructor.</li>
+<li>If we need to move things around, the surgery happens by replacing
+it with an appropriate <code class="src src-haskell"><span style="color: #228b22;">EpaDelta</span></code> version, just for the
+point where the change happens.</li>
+
+</ul>
+
+<aside class="notes">
+<ul>
+<li>After this deep dive into types, let's come up for air a bit.</li>
+<li>If you recall in the handwavy part we spoke about span being the
+source of truth, the thing we believe.</li>
+<li>For ghc-exactprint old hands, makeDeltaAst is no longer required (but still exists)</li>
+
+</ul>
+
+</aside>
+</section>
+</section>
+</div>
+</div>
+<script src="./reveal.js/dist/reveal.js"></script>
+<script src="./reveal.js/plugin/markdown/markdown.js"></script>
+<script src="./reveal.js/plugin/notes/notes.js"></script>
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: false,
+slideNumber: 'c/t',
+rollingLinks: false,
+keyboard: true,
+mouseWheel: false,
+fragmentInURL: false,
+hashOneBasedIndex: false,
+pdfSeparateFragments: true,
+overview: true,
+
+transition: 'linear',
+transitionSpeed: 'default',
+
+// Plugins with reveal.js 4.x
+plugins: [ RevealMarkdown, RevealNotes ],
+
+// Optional libraries used to extend reveal.js
+dependencies: [
+]
+
+});
+</script>
+</body>
 </html>
