@@ -308,3 +308,104 @@ Tie up to prior hand wavy part
 #+end_notes
 
 ** "Trivia"
+
+- everything that is not a location, comment, or surrounding
+  information, but is needed for exact printing.
+  - src_haskell{SourceText},
+  - keywords (via src_haskell{AnnKeywordId} or src_haskell{EpToken})
+
+*** src_haskell{AnnKeywordId}
+
+Original mechanism
+#+begin_src haskell
+data AnnKeywordId
+    ...
+    | AnnIn
+    | AnnLet
+#+end_src
+
+*** src_haskell{EpToken}
+
+New mechanism. May eventually supplant src_haskell{AnnKeywordId}
+
+#+begin_src haskell
+data EpToken (tok :: Symbol)
+  = NoEpTok
+  | EpTok !EpaLocation
+#+end_src
+
+Used as a type src_haskell{EpTok "let"}
+
+#+ATTR_REVEAL: :frag t
+Extract string for printing
+#+ATTR_REVEAL: :frag t
+#+begin_src haskell
+getEpTokenString :: forall tok. KnownSymbol tok => EpToken tok -> Maybe String
+getEpTokenString NoEpTok = Nothing
+getEpTokenString (EpTok _) = Just $ symbolVal (Proxy @tok)
+#+end_src
+
+
+*** "Trivia" storage
+Stored in the TTG extension points.
+
+Refresher
+#+begin_src haskell
+data HsExpr p
+  ...
+  | HsLet (XLet p) (HsLocalBinds p) (LHsExpr  p)
+
+type family XLet x
+#+end_src
+
+#+ATTR_REVEAL: :frag t
+#+begin_src haskell
+type instance XLet GhcPs = (EpToken "let", EpToken "in")
+#+end_src
+
+
+* What it means outside GHC
+- The Exact Print Annotations are packaged for use in [[https://hackage.haskell.org/package/ghc-exactprint][ghc-exactprint]]
+- Generally a "hidden" library, enabling others
+  - hlint apply hints
+  - various plugins in HLS
+  - built for HaRe, but that now languishes
+  - retrie
+
+** ghc-exactprint big picture
+- Parse
+- Transform
+- Print
+
+** ghc-exactprint parsing
+- src_haskell{parseModule}
+- "best effort" with CPP
+  - compares original with preprocessed, and turns the delta into
+    comments
+  - cannot work if =#define XX Blah= and then =XX= is used. =XX= added as a comment, as well as =Blah=
+- Honours pragmas, but you need to set src_haskell{DynFlags} for any e.g. project-wide options
+
+** ghc-exactprint transform
+- The reason src_haskell{ghc-exactprint} exists
+-
+
+** Name tie-ups
+- All src_haskell{RdrName}s in the AST are src_haskell{LocatedN}, containing 
+  a src_haskell{SrcSpan} when originally parsed.
+- The src_haskell{RenamedSource} does not remove named locations,
+  although it may move them around a bit.
+- So perform a generic traversal of the src_haskell{RenamedSource},
+  building a map of
+ #+begin_src haskell
+ SrcSpan -> Name
+ #+end_src
+
+
+* Future
+- Fixity info
+- GHC_CPP
+- Free vars?
+- Easy Export of Name table for lookup?
+
+
+* End
