@@ -387,7 +387,86 @@ type instance XLet GhcPs = (EpToken "let", EpToken "in")
 
 ** ghc-exactprint transform
 - The reason src_haskell{ghc-exactprint} exists
--
+- Intention: smallest changes possible
+
+*** Comments
+Its complicated.
+Once you decide to move thing around, you need to decide which comments to bring along.
+ghc-exactprint has balanceComments
+
+*** src_haskell{class HasDecls}
+
+#+begin_src haskell
+class (Data t) => HasDecls t where
+    hsDecls :: t -> [LHsDecl GhcPs]
+    replaceDecls :: t -> [LHsDecl GhcPs] -> t
+#+end_src
+
+#+begin_notes
+    - hasDecls
+      - Return the 'HsDecl's that are directly enclosed in the
+      given syntax phrase. They are always returned in the wrapped
+      'HsDecl' form, even if orginating in local decls. This is safe,
+      as annotations never attach to the wrapper, only to the wrapped
+      item.
+    - replaceDecls
+      - 
+     Replace the directly enclosed decl list by the given
+     decl list. As parto of replacing it will update list order
+     annotations, and rebalance comments and other layout changes as needed.
+    --
+    For example, a call on replaceDecls for a wrapped 'FunBind' having no
+    where clause will convert
+    --
+    @
+    -- |This is a function
+    foo = x -- comment1
+    --
+    in to
+    --
+    -- |This is a function
+    foo = x -- comment1
+      where
+        nn = 2
+#+end_notes
+
+*** src_haskell{replaceDecls}
+
+    #+begin_src haskell
+    -- |This is a function
+    foo = x -- comment1
+    -- trailing comment
+    #+end_src
+
+    to
+
+    #+begin_src haskell
+    -- |This is a function
+    foo = x -- comment1
+      where
+        nn = 2
+    -- trailing comment
+    #+end_src
+
+*** code for the replace
+
+#+begin_src haskell
+addLocaLDecl1 libdir top = do
+  Right (L ld (ValD _ decl)) <- withDynFlags libdir (\df -> parseDecl df "decl" "nn = 2")
+  let decl' = setEntryDP (L ld decl) (DifferentLine 1 5)
+      doAddLocal = replaceDecls top [de1', d2', d3]
+        where
+          (de1:d2:d3:_) = hsDecls top
+          (de1'',d2') = balanceComments de1 d2
+          (de1',_) = modifyValD (getLocA de1'') de1'' $ \_m d ->
+                       ((wrapDecl decl' : d),Nothing)
+
+  let top' = doAddLocal
+  return top'
+#+end_src
+
+
+** ghc-exactprint print
 
 ** Name tie-ups
 - All src_haskell{RdrName}s in the AST are src_haskell{LocatedN}, containing 
@@ -403,7 +482,7 @@ type instance XLet GhcPs = (EpToken "let", EpToken "in")
 
 * Future
 - Fixity info
-- GHC_CPP
+- src_haskell{GHC_CPP}
 - Free vars?
 - Easy Export of Name table for lookup?
 
