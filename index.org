@@ -390,9 +390,63 @@ type instance XLet GhcPs = (EpToken "let", EpToken "in")
 - Intention: smallest changes possible
 
 *** Comments
-Its complicated.
-Once you decide to move thing around, you need to decide which comments to bring along.
-ghc-exactprint has balanceComments
+
+Stored in src_haskell{EpAnn}
+
+#+begin_src haskell
+data EpAnnComments = EpaComments
+                        { priorComments :: ![LEpaComment] }
+                   | EpaCommentsBalanced
+                        { priorComments     :: ![LEpaComment]
+                        , followingComments :: ![LEpaComment] }
+#+end_src
+
+Once you decide to move thing around, you need to decide which
+comments to bring along.
+
+~ghc-exactprint~ has src_haskell{balanceComments} and src_haskell{balanceCommentsList}
+
+These use heuristics to "attach" comments to the appropriate top level
+declaration.
+
+#+begin_src haskell
+-- a random comment
+
+
+-- here is a function
+foo = 3
+-- here is a trailing comment
+
+-- Another random aside
+
+-- another function
+bar = 2
+#+end_src
+
+
+*** src_haskell{class FunBind} comments
+
+- src_haskell{class FunBind} is weird
+- it combines all the equations for a particular function
+- each shows up as a src_haskell{Match}, which is self-contained
+
+#+begin_src haskell
+-- a random comment
+
+
+-- here is a function
+foo True = 3
+-- here is a trailing comment
+
+-- Another random aside
+
+-- another function
+foo False = 2
+-- trailing second fun
+#+end_src
+
+*** src_haskell{modifyValD}
+
 
 *** src_haskell{class HasDecls}
 
@@ -410,7 +464,7 @@ class (Data t) => HasDecls t where
       as annotations never attach to the wrapper, only to the wrapped
       item.
     - replaceDecls
-      - 
+      -
      Replace the directly enclosed decl list by the given
      decl list. As parto of replacing it will update list order
      annotations, and rebalance comments and other layout changes as needed.
@@ -430,7 +484,7 @@ class (Data t) => HasDecls t where
         nn = 2
 #+end_notes
 
-*** src_haskell{replaceDecls}
+**** src_haskell{replaceDecls}
 
     #+begin_src haskell
     -- |This is a function
@@ -448,7 +502,7 @@ class (Data t) => HasDecls t where
     -- trailing comment
     #+end_src
 
-*** code for the replace
+**** code for the replace
 
 #+begin_src haskell
 addLocaLDecl1 libdir top = do
