@@ -404,6 +404,8 @@ data EpAnnComments = EpaComments
 Once you decide to move thing around, you need to decide which
 comments to bring along.
 
+*** src_haskell{balanceComments}
+
 ~ghc-exactprint~ has src_haskell{balanceComments} and src_haskell{balanceCommentsList}
 
 These use heuristics to "attach" comments to the appropriate top level
@@ -423,6 +425,25 @@ foo = 3
 bar = 2
 #+end_src
 
+
+*** becomes
+
+#+begin_src haskell
+-- a random comment
+#+end_src
+
+#+begin_src haskell
+-- here is a function
+foo = 3
+-- here is a trailing comment
+#+end_src
+
+#+begin_src haskell
+-- Another random aside
+
+-- another function
+bar = 2
+#+end_src
 
 *** src_haskell{class FunBind} comments
 
@@ -445,10 +466,50 @@ foo False = 2
 -- trailing second fun
 #+end_src
 
-*** src_haskell{modifyValD}
+*** becomes
 
+#+begin_src haskell
+-- a random comment
+#+end_src
 
-*** src_haskell{class HasDecls}
+On FunBind prior comments
+#+begin_src haskell
+-- here is a function
+#+end_src
+
+First match (OOPS, BUG in 1.10.0.0)
+#+begin_src haskell
+foo True = 3
+#+end_src
+
+Second match
+#+begin_src haskell
+-- here is a trailing comment
+
+-- Another random aside
+
+-- another function
+foo False = 2
+#+end_src
+
+On FunBind following comments
+#+begin_src haskell
+-- trailing second fun
+#+end_src
+
+*** Produced by
+
+#+begin_src haskell
+test = TestList [mkTestModChange libdir balanceComments "AFile.hs"]
+
+balanceComments :: Changer
+balanceComments _libdir lp = return $ replaceDecls lp ds'
+  where
+    ds = hsDecls lp
+    ds' = balanceCommentsList ds
+#+end_src
+
+** src_haskell{class HasDecls}
 
 #+begin_src haskell
 class (Data t) => HasDecls t where
@@ -484,7 +545,7 @@ class (Data t) => HasDecls t where
         nn = 2
 #+end_notes
 
-**** src_haskell{replaceDecls}
+*** src_haskell{replaceDecls}
 
     #+begin_src haskell
     -- |This is a function
@@ -502,23 +563,51 @@ class (Data t) => HasDecls t where
     -- trailing comment
     #+end_src
 
-**** code for the replace
+*** code for the replace
 
 #+begin_src haskell
+addLocaLDecl1 :: Changer
 addLocaLDecl1 libdir top = do
   Right (L ld (ValD _ decl)) <- withDynFlags libdir (\df -> parseDecl df "decl" "nn = 2")
   let decl' = setEntryDP (L ld decl) (DifferentLine 1 5)
-      doAddLocal = replaceDecls top [de1', d2', d3]
+      top' = replaceDecls top [de1', d2', d3]
         where
           (de1:d2:d3:_) = hsDecls top
           (de1'',d2') = balanceComments de1 d2
           (de1',_) = modifyValD (getLocA de1'') de1'' $ \_m d ->
-                       ((wrapDecl decl' : d),Nothing)
-
-  let top' = doAddLocal
+                       ((wrapDecl decl' : d), Nothing)
   return top'
 #+end_src
 
+*** src_haskell{modifyValD}
+- Remember src_haskell{FunBind}?
+
+#+begin_src haskell
+..
+[ma1,_ma2] = ms -- of de1
+(de1',_) = modifyValD (getLocA ma1) de1 $ \_m decls ->
+             (newDecl : decls, Nothing)
+#+end_src
+
+#+begin_src haskell
+type Decl  = LHsDecl GhcPs
+type PMatch = LMatch GhcPs (LHsExpr GhcPs)
+modifyValD
+   :: forall t. SrcSpan -> Decl
+   -> (PMatch -> [Decl] -> ([Decl], Maybe t))
+   -> (Decl, Maybe t)
+#+end_src
+
+
+#+begin_notes
+-- |Modify a 'LHsBind' wrapped in a 'ValD'. For a 'PatBind' the
+-- declarations are extracted and returned after modification. For a
+-- 'FunBind' the supplied 'SrcSpan' is used to identify the specific
+-- 'Match' to be transformed, for when there are multiple of them.
+
+Note: now that everything is pure, and connected, pretty much not
+needed.
+#+end_notes
 
 ** ghc-exactprint print
 
