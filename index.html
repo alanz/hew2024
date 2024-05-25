@@ -21,39 +21,39 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 <ul>
-<li><a href="#slide-org0b12d4f">ghc-exactprint</a></li>
-<li><a href="#slide-orgd4d6aab">About Me</a></li>
-<li><a href="#slide-orgc6681c1">This Talk</a></li>
-<li><a href="#slide-org99b690c">Problem Being Solved</a></li>
-<li><a href="#slide-orged05960">What it means inside GHC</a></li>
-<li><a href="#slide-org4483d92">What it means outside GHC</a></li>
-<li><a href="#slide-org8e99d16">Future</a></li>
-<li><a href="#slide-orgf418db0">End</a></li>
+<li><a href="#slide-org5943ebc">ghc-exactprint</a></li>
+<li><a href="#slide-org7804345">About Me</a></li>
+<li><a href="#slide-org9335842">This Talk</a></li>
+<li><a href="#slide-org79ff377">Problem Being Solved</a></li>
+<li><a href="#slide-org945eacb">What it means inside GHC</a></li>
+<li><a href="#slide-org594a6dd">What it means outside GHC</a></li>
+<li><a href="#slide-org027b450">Future</a></li>
+<li><a href="#slide-orgc63d15b">End</a></li>
 </ul>
 </div>
 </div>
 </section>
 <section>
-<section id="slide-org0b12d4f">
-<h2 id="org0b12d4f">ghc-exactprint</h2>
+<section id="slide-org5943ebc">
+<h2 id="org5943ebc">ghc-exactprint</h2>
 <p>
 Alan Zimmerman
 </p>
 
 <p>
-<a href="https://twitter.com/@alan_zimm"><code class="src src-haskell"><span style="color: #a0522d;">@</span>alanz<span style="color: #a0522d;">@</span>social<span style="color: #a0522d;">.</span>coop</code></a>
+<a href="https://social.coop/@alanz"><code>@alanz@social.coop</code></a>
 </p>
 
-<pre class="example">
+<p>
 Haskell Ecosystem Workshop,
 ZuriHac, 2024-06-07
-</pre>
+</p>
 
 </section>
 </section>
 <section>
-<section id="slide-orgd4d6aab">
-<h2 id="orgd4d6aab">About Me</h2>
+<section id="slide-org7804345">
+<h2 id="org7804345">About Me</h2>
 <ul>
 <li>Learned Haskell in 2012</li>
 <li>First GHC commit Sep 2014</li>
@@ -62,12 +62,13 @@ ZuriHac, 2024-06-07
 <li>And into GHC to make it useful for this</li>
 
 </ul>
+<div class="slide-footer">Footer</div>
 
 </section>
 </section>
 <section>
-<section id="slide-orgc6681c1">
-<h2 id="orgc6681c1">This Talk</h2>
+<section id="slide-org9335842">
+<h2 id="org9335842">This Talk</h2>
 <ul>
 <li>Overview of the problem being solved</li>
 <li>What it means inside GHC</li>
@@ -78,8 +79,8 @@ ZuriHac, 2024-06-07
 </section>
 </section>
 <section>
-<section id="slide-org99b690c">
-<h2 id="org99b690c">Problem Being Solved</h2>
+<section id="slide-org79ff377">
+<h2 id="org79ff377">Problem Being Solved</h2>
 <p>
 To allow a tool to
 </p>
@@ -94,8 +95,8 @@ To allow a tool to
 </section>
 </section>
 <section>
-<section id="slide-org3e80eb4">
-<h3 id="org3e80eb4">Start from GHC ParsedSource</h3>
+<section id="slide-orgaed2592">
+<h3 id="orgaed2592">Start from GHC ParsedSource</h3>
 <ul>
 <li>It must accurately reflect the input source</li>
 <li>Literals
@@ -109,8 +110,8 @@ Things like keywords, commas, semicolons, brackets of all kinds</li>
 </section>
 </section>
 <section>
-<section id="slide-orge639fdc">
-<h3 id="orge639fdc">Literals Detail</h3>
+<section id="slide-org7748e24">
+<h3 id="org7748e24">Literals Detail</h3>
 <p>
 TBD
 (AZ note, see LiteralsTest.hs in testsuite, and HIW2021 slide)
@@ -119,8 +120,8 @@ TBD
 </section>
 </section>
 <section>
-<section id="slide-orgf99d1d9">
-<h3 id="orgf99d1d9">Capturing Trivia</h3>
+<section id="slide-org90a9c28">
+<h3 id="org90a9c28">Capturing Trivia</h3>
 <p>
 TBD
 </p>
@@ -128,8 +129,8 @@ TBD
 </section>
 </section>
 <section>
-<section id="slide-orgfa5aad7">
-<h3 id="orgfa5aad7">Spacing</h3>
+<section id="slide-org865b94c">
+<h3 id="org865b94c">Spacing</h3>
 <ul>
 <li>Spacing is a funny thing.</li>
 <li>To start with, it is just a given. This is where things are in the source, all wrapped in a SrcSpan</li>
@@ -149,8 +150,8 @@ TBD
 </section>
 </section>
 <section>
-<section id="slide-orgfbd66f1">
-<h3 id="orgfbd66f1">Principles for Spacing</h3>
+<section id="slide-org9d4854c">
+<h3 id="org9d4854c">Principles for Spacing</h3>
 <ul>
 <li>A located AST element is treated as a unit
 <ul>
@@ -177,8 +178,8 @@ anywhere</li>
 </section>
 </section>
 <section>
-<section id="slide-org1292927">
-<h3 id="org1292927">Spacing : the trick</h3>
+<section id="slide-orge571105">
+<h3 id="orge571105">Spacing : the trick</h3>
 <ul>
 <li>An internally consistent AST element has absolute locations</li>
 <li>But when we print, we have a print head that we advance</li>
@@ -207,8 +208,8 @@ So
 </section>
 </section>
 <section>
-<section id="slide-orgcad0a63">
-<h3 id="orgcad0a63">Spacing : the missing piece</h3>
+<section id="slide-org715dce0">
+<h3 id="org715dce0">Spacing : the missing piece</h3>
 <p>
 There is one remaining problem
 </p>
@@ -237,8 +238,8 @@ actual span we see</li>
 </section>
 </section>
 <section>
-<section id="slide-org3bdd5b4">
-<h3 id="org3bdd5b4">Spacing : size changes</h3>
+<section id="slide-org2cfbee4">
+<h3 id="org2cfbee4">Spacing : size changes</h3>
 <ul>
 <li>A typical change is to rename a variable.</li>
 <li>The name may be longer or shorter.</li>
@@ -252,8 +253,8 @@ actual span we see</li>
 </section>
 </section>
 <section>
-<section id="slide-org0d1649a">
-<h3 id="org0d1649a">Spacing : size changes 2</h3>
+<section id="slide-org540c023">
+<h3 id="org540c023">Spacing : size changes 2</h3>
 <ul>
 <li>The same principle holds for bigger changes.</li>
 <li>If we add additional content inside a span, it does not matter,</li>
@@ -266,8 +267,8 @@ entry spacing</li>
 </section>
 </section>
 <section>
-<section id="slide-org8b48f15">
-<h3 id="org8b48f15">Spacing : layout</h3>
+<section id="slide-org51c8b10">
+<h3 id="org51c8b10">Spacing : layout</h3>
 <p>
 Haskell is a layout-sensitive language
 </p>
@@ -281,13 +282,13 @@ AZ Note: Do we need this slide?
 </section>
 </section>
 <section>
-<section id="slide-org9931489">
-<h3 id="org9931489">Order in lists</h3>
+<section id="slide-orgccbaea2">
+<h3 id="orgccbaea2">Order in lists</h3>
 <ul>
-<li><code class="src src-haskell"><span style="color: #228b22;">ParsedSource</span></code> is not a completely accurate reflection of the original source.</li>
-<li><code class="src src-haskell"><span style="color: #228b22;">ValBinds</span></code> separates out <code class="src src-haskell"><span style="color: #228b22;">Sig</span></code>s and <code class="src src-haskell"><span style="color: #228b22;">Bind</span></code>s</li>
-<li><code class="src src-haskell"><span style="color: #228b22;">ClsInstDecl</span></code> separates out <code class="src src-haskell"><span style="color: #228b22;">Bind</span></code>s,
-<code class="src src-haskell"><span style="color: #228b22;">Sig</span></code>s, Type family instances and Data family instances</li>
+<li><code>ParsedSource</code> is not a completely accurate reflection of the original source.</li>
+<li><code>ValBinds</code> separates out ~Sig~s and ~Bind~s</li>
+<li><code>ClsInstDecl</code> separates out ~Bind~s,
+~Sig~s, Type family instances and Data family instances</li>
 <li>For both of these, the original source can have them in any order.</li>
 
 </ul>
@@ -295,8 +296,8 @@ AZ Note: Do we need this slide?
 </section>
 </section>
 <section>
-<section id="slide-orgf26321c">
-<h3 id="orgf26321c">Order in lists 2</h3>
+<section id="slide-org5381bb9">
+<h3 id="org5381bb9">Order in lists 2</h3>
 <p>
  AST implements “Trees That Grow”
 This means extra information can be carried, computed via type classes
@@ -318,28 +319,28 @@ in ones from elsewhere.</li>
 </section>
 </section>
 <section>
-<section id="slide-org5eadfba">
-<h3 id="org5eadfba">Order in lists 3 : Solution</h3>
+<section id="slide-org70119c1">
+<h3 id="org70119c1">Order in lists 3 : Solution</h3>
 <ul>
-<li>Each specific list is physically ordered, so for <code class="src src-haskell"><span style="color: #228b22;">ValBinds</span></code> we know
+<li>Each specific list is physically ordered, so for <code>ValBinds</code> we know
 the order of the sigs, and of the binds.</li>
 <li>But we don’t know the interleaving.</li>
-<li>We supply this in an <code class="src src-haskell"><span style="color: #228b22;">AnnSortKey</span></code>, which drives a merge process.</li>
-<li>It keeps a list of <code class="src src-haskell"><span style="color: #228b22;">SigDTag</span></code> or <code class="src src-haskell"><span style="color: #228b22;">BindTag</span></code> for
-a <code class="src src-haskell"><span style="color: #228b22;">ValBind</span></code>, telling which list to draw from each time.</li>
+<li>We supply this in an <code>AnnSortKey</code>, which drives a merge process.</li>
+<li>It keeps a list of <code>SigDTag</code> or <code>BindTag</code> for
+a <code>ValBind</code>, telling which list to draw from each time.</li>
 
 </ul>
 
 </section>
 </section>
 <section>
-<section id="slide-org84bbcda">
-<h3 id="org84bbcda">Comments</h3>
+<section id="slide-org52fb2d4">
+<h3 id="org52fb2d4">Comments</h3>
 <ul>
 <li>Comments are the ultimate “trivia”. They have no influence on
 overall spacing and layout, but need to be preserved precisely.</li>
 <li>They can also occur absolutely anywhere in the source file.</li>
-<li>So we keep them in the "<code class="src src-haskell"><span style="color: #228b22;">SrcSpan</span></code> on steroids" we wrap
+<li>So we keep them in the "<code>SrcSpan</code> on steroids" we wrap
 everything in, and fit them in when we print, if they fit into the
 current gap.</li>
 <li>It’s more complicated than that, but we will look into detail later.</li>
@@ -349,8 +350,8 @@ current gap.</li>
 </section>
 </section>
 <section>
-<section id="slide-org97af981">
-<h3 id="org97af981">Trailing Items</h3>
+<section id="slide-org0d85b94">
+<h3 id="org0d85b94">Trailing Items</h3>
 <ul>
 <li>The consistency belief we base everything on is that everything fits
 inside the AST Element span.</li>
@@ -367,8 +368,8 @@ else, the trailing comma should be managed as part of that location.</li>
 </section>
 </section>
 <section>
-<section id="slide-org6183043">
-<h3 id="org6183043">End of Hand Wavy Part</h3>
+<section id="slide-orgd7eda6f">
+<h3 id="orgd7eda6f">End of Hand Wavy Part</h3>
 <ul>
 <li>Hopefully you now have a high level understanding of what the exact
 print annotations are for.</li>
@@ -380,8 +381,8 @@ print annotations are for.</li>
 </section>
 </section>
 <section>
-<section id="slide-orged05960">
-<h2 id="orged05960">What it means inside GHC</h2>
+<section id="slide-org945eacb">
+<h2 id="org945eacb">What it means inside GHC</h2>
 <p>
 Time to dive into the detail. Two main divisions
 </p>
@@ -394,15 +395,15 @@ Time to dive into the detail. Two main divisions
 </section>
 </section>
 <section>
-<section id="slide-org2d3651f">
-<h3 id="org2d3651f">Trees That Grow</h3>
+<section id="slide-orgb3a74d1">
+<h3 id="orgb3a74d1">Trees That Grow</h3>
 <ul>
 <li>GHC AST implements “Trees That Grow”</li>
 <li>This means extra information can be carried, computed via type classes</li>
 <li>Used for Exact Print Annotations (EPA)</li>
 <li>Uses two mechanisms
 <ul>
-<li><code class="src src-haskell"><span style="color: #228b22;">XRec</span></code> for Located things [AZ note: not part of TTG]</li>
+<li><code>XRec</code> for Located things [AZ note: not part of TTG]</li>
 <li>TTG extension points for the rest</li>
 
 </ul></li>
@@ -412,10 +413,10 @@ Time to dive into the detail. Two main divisions
 </section>
 </section>
 <section>
-<section id="slide-orgb37d8e5">
-<h3 id="orgb37d8e5">Terminology</h3>
+<section id="slide-org97254bb">
+<h3 id="org97254bb">Terminology</h3>
 <ul>
-<li>AST: <code class="src src-haskell"><span style="color: #228b22;">ParsedSource</span></code></li>
+<li>AST: <code>ParsedSource</code></li>
 
 </ul>
 
@@ -426,22 +427,22 @@ Time to dive into the detail. Two main divisions
 </div>
 
 <p>
-For now we accept <code class="src src-haskell"><span style="color: #228b22;">GhcPs</span></code> as simply a marker of the AST from the
+For now we accept <code>GhcPs</code> as simply a marker of the AST from the
 parsing phase.
 </p>
 
 </section>
 </section>
 <section>
-<section id="slide-orgba6a51b">
-<h3 id="orgba6a51b">Located Things</h3>
+<section id="slide-org8885277">
+<h3 id="org8885277">Located Things</h3>
 <p>
 The AST is layered, in that alternate layer &#x2026;
 </p>
 
 </section>
-<section id="slide-org83501e2">
-<h4 id="org83501e2">Location</h4>
+<section id="slide-orgec52d02">
+<h4 id="orgec52d02">Location</h4>
 <div class="org-src-container">
 
 <pre class="src src-haskell"><span style="color: #a020f0;">type</span> <span style="color: #a020f0;">family</span> <span style="color: #228b22;">XRec</span> p a <span style="color: #a0522d;">=</span> r <span style="color: #a0522d;">|</span> r <span style="color: #a0522d;">-&gt;</span> a
@@ -474,8 +475,8 @@ The AST is layered, in that alternate layer &#x2026;
 </div>
 
 </section>
-<section id="slide-orgb75f55a">
-<h4 id="orgb75f55a">EpAnn</h4>
+<section id="slide-orgb812346">
+<h4 id="orgb812346">EpAnn</h4>
 <div class="org-src-container">
 
 <pre class="src src-haskell"><span style="color: #a020f0;">data</span> <span style="color: #228b22;">EpAnn</span> ann <span style="color: #a0522d;">=</span> <span style="color: #228b22;">EpAnn</span>
@@ -496,8 +497,8 @@ The AST is layered, in that alternate layer &#x2026;
 </div>
 
 </section>
-<section id="slide-org359c1bb">
-<h4 id="org359c1bb"><code class="src src-haskell"><span style="color: #228b22;">AnnListItem</span></code></h4>
+<section id="slide-orgbbcc810">
+<h4 id="orgbbcc810"><code>AnnListItem</code></h4>
 <div class="org-src-container">
 
 <pre class="src src-haskell"><span style="color: #8b2252;">-- | Annotation for items appearing in a list. They can have one or</span>
@@ -510,12 +511,12 @@ The AST is layered, in that alternate layer &#x2026;
 </div>
 
 </section>
-<section id="slide-orgd3b580e">
-<h4 id="orgd3b580e">Sanity check</h4>
+<section id="slide-org9c0eed8">
+<h4 id="org9c0eed8">Sanity check</h4>
 <p>
 Tie up to prior hand wavy part
 </p>
-<pre class="example" id="org905e90c">
+<pre class="example" id="org0ea9f9f">
 (L
  (EpAnn
   (EpaSpan { DumpParsedAst.hs:5:1-16 })
@@ -527,11 +528,10 @@ Tie up to prior hand wavy part
 </pre>
 
 <ul>
-<li><code class="src src-haskell"><span style="color: #228b22;">SrcSpan</span></code> we "believe" is the one in the
-<code class="src src-haskell"><span style="color: #228b22;">EpAnn</span></code> <code class="src src-haskell">entry</code>, using the
-<code class="src src-haskell"><span style="color: #228b22;">EpaSpan</span></code> constructor.</li>
+<li><code>SrcSpan</code> we "believe" is the one in the <code>EpAnn</code> <code>entry</code>, using the
+<code>EpaSpan</code> constructor.</li>
 <li>If we need to move things around, the surgery happens by replacing
-it with an appropriate <code class="src src-haskell"><span style="color: #228b22;">EpaDelta</span></code> version, just for the
+it with an appropriate <code>EpaDelta</code> version, just for the
 point where the change happens.</li>
 
 </ul>
@@ -550,22 +550,22 @@ source of truth, the thing we believe.</li>
 </section>
 </section>
 <section>
-<section id="slide-org589231f">
-<h3 id="org589231f">"Trivia"</h3>
+<section id="slide-org0dd209f">
+<h3 id="org0dd209f">"Trivia"</h3>
 <ul>
 <li>everything that is not a location, comment, or surrounding
 information, but is needed for exact printing.
 <ul>
-<li><code class="src src-haskell"><span style="color: #228b22;">SourceText</span></code>,</li>
-<li>keywords (via <code class="src src-haskell"><span style="color: #228b22;">AnnKeywordId</span></code> or <code class="src src-haskell"><span style="color: #228b22;">EpToken</span></code>)</li>
+<li><code>SourceText</code>,</li>
+<li>keywords (via <code>AnnKeywordId</code> or <code>EpToken</code>)</li>
 
 </ul></li>
 
 </ul>
 
 </section>
-<section id="slide-orge8982c2">
-<h4 id="orge8982c2"><code class="src src-haskell"><span style="color: #228b22;">AnnKeywordId</span></code></h4>
+<section id="slide-org47cd811">
+<h4 id="org47cd811"><code>AnnKeywordId</code></h4>
 <p>
 Original mechanism
 </p>
@@ -579,10 +579,10 @@ Original mechanism
 </div>
 
 </section>
-<section id="slide-orgae2e6a6">
-<h4 id="orgae2e6a6"><code class="src src-haskell"><span style="color: #228b22;">EpToken</span></code></h4>
+<section id="slide-org4d6a12c">
+<h4 id="org4d6a12c"><code>EpToken</code></h4>
 <p>
-New mechanism. May eventually supplant <code class="src src-haskell"><span style="color: #228b22;">AnnKeywordId</span></code>
+New mechanism. May eventually supplant <code>AnnKeywordId</code>
 </p>
 
 <div class="org-src-container">
@@ -594,7 +594,7 @@ New mechanism. May eventually supplant <code class="src src-haskell"><span style
 </div>
 
 <p>
-Used as a type <code class="src src-haskell"><span style="color: #228b22;">EpTok</span> <span style="color: #8b2252;">"let"</span></code>
+Used as a type <code>EpTok "let"</code>
 </p>
 
 <p class="fragment">
@@ -602,7 +602,7 @@ Extract string for printing
 </p>
 <div class="org-src-container">
 
-<pre class="fragment"><span style="color: #0000ff;">getEpTokenString</span> <span style="color: #a0522d;">::</span> <span style="color: #a020f0;">forall</span> tok<span style="color: #a0522d;">.</span> <span style="color: #228b22;">KnownSymbol</span> tok <span style="color: #a0522d;">=&gt;</span> <span style="color: #228b22;">EpToken</span> tok <span style="color: #a0522d;">-&gt;</span> <span style="color: #228b22;">Maybe</span> <span style="color: #228b22;">String</span>
+<pre class="src src-haskell"><span style="color: #0000ff;">getEpTokenString</span> <span style="color: #a0522d;">::</span> <span style="color: #a020f0;">forall</span> tok<span style="color: #a0522d;">.</span> <span style="color: #228b22;">KnownSymbol</span> tok <span style="color: #a0522d;">=&gt;</span> <span style="color: #228b22;">EpToken</span> tok <span style="color: #a0522d;">-&gt;</span> <span style="color: #228b22;">Maybe</span> <span style="color: #228b22;">String</span>
 <span style="color: #0000ff;">getEpTokenString</span> <span style="color: #228b22;">NoEpTok</span> <span style="color: #a0522d;">=</span> <span style="color: #228b22;">Nothing</span>
 <span style="color: #0000ff;">getEpTokenString</span> (<span style="color: #228b22;">EpTok</span> <span style="color: #a020f0;">_</span>) <span style="color: #a0522d;">=</span> <span style="color: #228b22;">Just</span> <span style="color: #a0522d;">$</span> symbolVal (<span style="color: #228b22;">Proxy</span> <span style="color: #a0522d;">@</span>tok)
 </pre>
@@ -610,8 +610,8 @@ Extract string for printing
 
 
 </section>
-<section id="slide-org869130c">
-<h4 id="org869130c">"Trivia" storage</h4>
+<section id="slide-orgb19e193">
+<h4 id="orgb19e193">"Trivia" storage</h4>
 <p>
 Stored in the TTG extension points.
 </p>
@@ -639,8 +639,8 @@ Refresher
 </section>
 </section>
 <section>
-<section id="slide-org4483d92">
-<h2 id="org4483d92">What it means outside GHC</h2>
+<section id="slide-org594a6dd">
+<h2 id="org594a6dd">What it means outside GHC</h2>
 <ul>
 <li>The Exact Print Annotations are packaged for use in <a href="https://hackage.haskell.org/package/ghc-exactprint">ghc-exactprint</a></li>
 <li>Generally a "hidden" library, enabling others
@@ -657,8 +657,8 @@ Refresher
 </section>
 </section>
 <section>
-<section id="slide-org19d24dd">
-<h3 id="org19d24dd">ghc-exactprint big picture</h3>
+<section id="slide-org2315a32">
+<h3 id="org2315a32">ghc-exactprint big picture</h3>
 <ul>
 <li>Parse</li>
 <li>Transform</li>
@@ -669,10 +669,10 @@ Refresher
 </section>
 </section>
 <section>
-<section id="slide-org1d0261d">
-<h3 id="org1d0261d">ghc-exactprint parsing</h3>
+<section id="slide-orgda7e6b6">
+<h3 id="orgda7e6b6">ghc-exactprint parsing</h3>
 <ul>
-<li><code class="src src-haskell">parseModule</code></li>
+<li><code>parseModule</code></li>
 <li>"best effort" with CPP
 <ul>
 <li>compares original with preprocessed, and turns the delta into
@@ -680,26 +680,26 @@ comments</li>
 <li>cannot work if <code>#define XX Blah</code> and then <code>XX</code> is used. <code>XX</code> added as a comment, as well as <code>Blah</code></li>
 
 </ul></li>
-<li>Honours pragmas, but you need to set <code class="src src-haskell"><span style="color: #228b22;">DynFlags</span></code> for any e.g. project-wide options</li>
+<li>Honours pragmas, but you need to set <code>DynFlags</code> for any e.g. project-wide options</li>
 
 </ul>
 
 </section>
 </section>
 <section>
-<section id="slide-org7ec8e36">
-<h3 id="org7ec8e36">ghc-exactprint transform</h3>
+<section id="slide-orgd824f48">
+<h3 id="orgd824f48">ghc-exactprint transform</h3>
 <ul>
-<li>The reason <code class="src src-haskell">ghc<span style="color: #0000ff;">-</span>exactprint</code> exists</li>
+<li>The reason <code>ghc-exactprint</code> exists</li>
 <li>Intention: smallest changes possible</li>
 
 </ul>
 
 </section>
-<section id="slide-orgbd945e2">
-<h4 id="orgbd945e2">Comments</h4>
+<section id="slide-orgb5909a1">
+<h4 id="orgb5909a1">Comments</h4>
 <p>
-Stored in <code class="src src-haskell"><span style="color: #228b22;">EpAnn</span></code>
+Stored in <code>EpAnn</code>
 </p>
 
 <div class="org-src-container">
@@ -718,10 +718,10 @@ comments to bring along.
 </p>
 
 </section>
-<section id="slide-org24155e0">
-<h4 id="org24155e0"><code class="src src-haskell">balanceComments</code></h4>
+<section id="slide-orgc2db500">
+<h4 id="orgc2db500"><code>balanceComments</code></h4>
 <p>
-<code>ghc-exactprint</code> has <code class="src src-haskell">balanceComments</code> and <code class="src src-haskell">balanceCommentsList</code>
+<code>ghc-exactprint</code> has <code>balanceComments</code> and <code>balanceCommentsList</code>
 </p>
 
 <p>
@@ -747,8 +747,8 @@ declaration.
 
 
 </section>
-<section id="slide-org53d22ee">
-<h4 id="org53d22ee">becomes</h4>
+<section id="slide-orgc30e4bb">
+<h4 id="orgc30e4bb">becomes</h4>
 <div class="org-src-container">
 
 <pre class="src src-haskell"><span style="color: #b22222;">-- </span><span style="color: #b22222;">a random comment</span>
@@ -773,12 +773,12 @@ declaration.
 </div>
 
 </section>
-<section id="slide-org2289659">
-<h4 id="org2289659"><code class="src src-haskell"><span style="color: #a020f0;">class</span> <span style="color: #228b22;">FunBind</span></code> comments</h4>
+<section id="slide-org98f0272">
+<h4 id="org98f0272"><code>FunBind</code> comments</h4>
 <ul>
-<li><code class="src src-haskell"><span style="color: #a020f0;">class</span> <span style="color: #228b22;">FunBind</span></code> is weird</li>
+<li><code>FunBind</code> is weird</li>
 <li>it combines all the equations for a particular function</li>
-<li>each shows up as a <code class="src src-haskell"><span style="color: #228b22;">Match</span></code>, which is self-contained</li>
+<li>each shows up as a <code>Match</code>, which is self-contained</li>
 
 </ul>
 
@@ -800,8 +800,8 @@ declaration.
 </div>
 
 </section>
-<section id="slide-orga998492">
-<h4 id="orga998492">becomes</h4>
+<section id="slide-org48cb44c">
+<h4 id="org48cb44c">becomes</h4>
 <div class="org-src-container">
 
 <pre class="src src-haskell"><span style="color: #b22222;">-- </span><span style="color: #b22222;">a random comment</span>
@@ -850,8 +850,8 @@ On FunBind following comments
 </div>
 
 </section>
-<section id="slide-orgf053ca8">
-<h4 id="orgf053ca8">Produced by</h4>
+<section id="slide-orgf864f98">
+<h4 id="orgf864f98">Produced by</h4>
 <div class="org-src-container">
 
 <pre class="src src-haskell"><span style="color: #0000ff;">test</span> <span style="color: #a0522d;">=</span> <span style="color: #228b22;">TestList</span> [mkTestModChange libdir balanceComments <span style="color: #8b2252;">"AFile.hs"</span>]
@@ -867,8 +867,8 @@ On FunBind following comments
 </section>
 </section>
 <section>
-<section id="slide-orgd8ad12b">
-<h3 id="orgd8ad12b"><code class="src src-haskell"><span style="color: #a020f0;">class</span> <span style="color: #228b22;">HasDecls</span></code></h3>
+<section id="slide-org540d865">
+<h3 id="org540d865"><code>class HasDecls</code></h3>
 <div class="org-src-container">
 
 <pre class="src src-haskell"><span style="color: #a020f0;">class</span> (<span style="color: #228b22;">Data</span> t) <span style="color: #a0522d;">=&gt;</span> <span style="color: #228b22;">HasDecls</span> t <span style="color: #a020f0;">where</span>
@@ -926,8 +926,8 @@ foo = x &#x2013; comment1
 </aside>
 
 </section>
-<section id="slide-org8d8f609">
-<h4 id="org8d8f609"><code class="src src-haskell">replaceDecls</code></h4>
+<section id="slide-org7082f63">
+<h4 id="org7082f63"><code>replaceDecls</code></h4>
 <div class="org-src-container">
 
 <pre class="src src-haskell"><span style="color: #8b2252;">-- |This is a function</span>
@@ -951,29 +951,28 @@ to
 </div>
 
 </section>
-<section id="slide-org0db257a">
-<h4 id="org0db257a">code for the replace</h4>
+<section id="slide-orge283671">
+<h4 id="orge283671">code for the replace</h4>
 <div class="org-src-container">
 
 <pre class="src src-haskell"><span style="color: #0000ff;">addLocaLDecl1</span> <span style="color: #a0522d;">::</span> <span style="color: #228b22;">Changer</span>
 <span style="color: #0000ff;">addLocaLDecl1</span> libdir top <span style="color: #a0522d;">=</span> <span style="color: #a020f0;">do</span>
   <span style="color: #228b22;">Right</span> (<span style="color: #228b22;">L</span> ld (<span style="color: #228b22;">ValD</span> <span style="color: #a020f0;">_</span> decl)) <span style="color: #a0522d;">&lt;-</span> withDynFlags libdir (<span style="color: #a0522d;">\</span>df <span style="color: #a0522d;">-&gt;</span> parseDecl df <span style="color: #8b2252;">"decl"</span> <span style="color: #8b2252;">"nn = 2"</span>)
-  <span style="color: #a020f0;">let</span> decl' <span style="color: #a0522d;">=</span> setEntryDP (<span style="color: #228b22;">L</span> ld decl) (<span style="color: #228b22;">DifferentLine</span> 1 5)
-      top' <span style="color: #a0522d;">=</span> replaceDecls top [de1', d2', d3]
-        <span style="color: #a020f0;">where</span>
-          (de1<span style="color: #228b22;">:</span>d2<span style="color: #228b22;">:</span>d3<span style="color: #228b22;">:</span><span style="color: #a020f0;">_</span>) <span style="color: #a0522d;">=</span> hsDecls top
-          (de1'',d2') <span style="color: #a0522d;">=</span> balanceComments de1 d2
-          (de1',<span style="color: #a020f0;">_</span>) <span style="color: #a0522d;">=</span> modifyValD (getLocA de1'') de1'' <span style="color: #a0522d;">$</span> <span style="color: #a0522d;">\</span>_m d <span style="color: #a0522d;">-&gt;</span>
-                       ((wrapDecl decl' <span style="color: #228b22;">:</span> d), <span style="color: #228b22;">Nothing</span>)
-  return top'
+  <span style="color: #a020f0;">let</span>
+      decl' <span style="color: #a0522d;">=</span> setEntryDP (<span style="color: #228b22;">L</span> ld decl) (<span style="color: #228b22;">DifferentLine</span> 1 5)
+      (de1<span style="color: #228b22;">:</span>d2<span style="color: #228b22;">:</span>d3<span style="color: #228b22;">:</span><span style="color: #a020f0;">_</span>) <span style="color: #a0522d;">=</span> hsDecls top
+      (de1',d2') <span style="color: #a0522d;">=</span> balanceComments de1 d2
+      (de1'',<span style="color: #a020f0;">_</span>) <span style="color: #a0522d;">=</span> modifyValD (getLocA de1') de1' <span style="color: #a0522d;">$</span> <span style="color: #a0522d;">\</span>_m d <span style="color: #a0522d;">-&gt;</span>
+                   ((wrapDecl decl' <span style="color: #228b22;">:</span> d), <span style="color: #228b22;">Nothing</span>)
+  return <span style="color: #a0522d;">$</span> replaceDecls top [de1'', d2', d3]
 </pre>
 </div>
 
 </section>
-<section id="slide-org73b0fe4">
-<h4 id="org73b0fe4"><code class="src src-haskell">modifyValD</code></h4>
+<section id="slide-org492a67a">
+<h4 id="org492a67a"><code>modifyValD</code></h4>
 <ul>
-<li>Remember <code class="src src-haskell"><span style="color: #228b22;">FunBind</span></code>?</li>
+<li>Remember <code>FunBind</code>?</li>
 
 </ul>
 
@@ -998,7 +997,6 @@ to
 </div>
 
 
-
 <aside class="notes">
 <p>
 &#x2013; |Modify a 'LHsBind' wrapped in a 'ValD'. For a 'PatBind' the
@@ -1007,26 +1005,102 @@ to
 &#x2013; 'Match' to be transformed, for when there are multiple of them.
 </p>
 
+<p>
+Note: now that everything is pure, and connected, pretty much not
+needed.
+</p>
+
 </aside>
 
 </section>
+<section id="slide-org8c399be">
+<h4 id="org8c399be">packFunBind, unpackFunBind</h4>
+<p>
+And packFunDecl, unpackFunDecl
+</p>
+
 </section>
-<section>
-<section id="slide-orgfe0a14f">
-<h3 id="orgfe0a14f">ghc-exactprint print</h3>
+<section id="slide-org342784b">
+<h4 id="org342784b">addToList etc</h4>
+
+</section>
+<section id="slide-org6ee78c8">
+<h4 id="org6ee78c8">replaceDecls sort order</h4>
+<ul>
+<li>Remember <code>AnnSortKey</code>?</li>
+<li>It is populated in <code>replaceDecls</code></li>
+<li><code>captureOrderBinds</code></li>
+<li><code>replaceDeclsClassDecl</code> (and <code>hsDeclsClassDecl</code>)</li>
+
+<li><p>
+<code>oderedDecls</code>
+When <code>NoAnnSortKey</code>,
+</p>
+<ul>
+<li>Assume working with an unchanged AST</li>
+<li>use the locations of the decls and sort</li>
+
+</ul>
+<p>
+When <code>AnnSortKey DeclTag</code>
+</p>
+<ul>
+<li>Build <code>Map.Map DeclTag [LHsDecl GhcPs]</code> from assorted <code>ClassDecl</code> parts</li>
+<li></li>
+
+</ul></li>
+
+</ul>
 
 </section>
 </section>
 <section>
-<section id="slide-org096a596">
-<h3 id="org096a596">Name tie-ups</h3>
+<section id="slide-org582f8b1">
+<h3 id="org582f8b1">Summary</h3>
 <ul>
-<li>All <code class="src src-haskell"><span style="color: #228b22;">RdrName</span></code>s in the AST are <code class="src src-haskell"><span style="color: #228b22;">LocatedN</span></code>, containing 
-a <code class="src src-haskell"><span style="color: #228b22;">SrcSpan</span></code> when originally parsed.</li>
-<li>The <code class="src src-haskell"><span style="color: #228b22;">RenamedSource</span></code> does not remove named locations,
+<li>balance comments</li>
+<li>manage funbind comment details</li>
+<li>manage <code>where</code> for adding/removing decls to <code>HsValBinds</code></li>
+<li>track sort order</li>
+<li>wrap/unwrap binds</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org7d17dbb">
+<h3 id="org7d17dbb">ghc-exactprint print</h3>
+<p>
+This is the heart of the thing
+</p>
+
+<p>
+But will not look in detail, it is too complex
+</p>
+
+<p>
+Suffice to say,
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #0000ff;">exactPrint</span> <span style="color: #a0522d;">::</span> <span style="color: #228b22;">ExactPrint</span> ast <span style="color: #a0522d;">=&gt;</span> ast <span style="color: #a0522d;">-&gt;</span> <span style="color: #228b22;">String</span>
+</pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-org0566411">
+<h3 id="org0566411">Name tie-ups</h3>
+<ul>
+<li>All <code>RdrName</code> s in the AST are <code>LocatedN</code>, containing
+a <code>SrcSpan</code> when originally parsed.</li>
+<li>The <code>RenamedSource</code> does not remove named locations,
 although it may move them around a bit.</li>
 <li><p>
-So perform a generic traversal of the <code class="src src-haskell"><span style="color: #228b22;">RenamedSource</span></code>,
+So perform a generic traversal of the <code>RenamedSource</code>,
 building a map of
 </p>
 <div class="org-src-container">
@@ -1041,22 +1115,29 @@ building a map of
 </section>
 </section>
 <section>
-<section id="slide-org8e99d16">
-<h2 id="org8e99d16">Future</h2>
+<section id="slide-org027b450">
+<h2 id="org027b450">Future</h2>
 <ul>
 <li>Fixity info</li>
-<li><code class="src src-haskell"><span style="color: #228b22;">GHC_CPP</span></code></li>
+<li><code>GHC_CPP</code></li>
 <li>Free vars?</li>
 <li>Easy Export of Name table for lookup?</li>
+<li>ghc-exactprint API
+<ul>
+<li>currently provisional</li>
+<li>should it be split?</li>
+<li>where should it live?</li>
+
+</ul></li>
+<li>Link-up with ghc-lib-parser</li>
 
 </ul>
-
 
 </section>
 </section>
 <section>
-<section id="slide-orgf418db0">
-<h2 id="orgf418db0">End</h2>
+<section id="slide-orgc63d15b">
+<h2 id="orgc63d15b">End</h2>
 </section>
 </section>
 </div>

@@ -25,12 +25,10 @@
 
 Alan Zimmerman
 
-[[https://twitter.com/@alan_zimm][src_haskell{@alanz@social.coop}]]
+[[https://social.coop/@alanz][~@alanz@social.coop~]]
 
-#+begin_src
 Haskell Ecosystem Workshop,
 ZuriHac, 2024-06-07
-#+end_src
 
 * About Me
 - Learned Haskell in 2012
@@ -140,10 +138,10 @@ AZ Note: Do we need this slide?
 
 ** Order in lists
 
-- src_haskell{ParsedSource} is not a completely accurate reflection of the original source.
-- src_haskell{ValBinds} separates out src_haskell{Sig}s and src_haskell{Bind}s
-- src_haskell{ClsInstDecl} separates out src_haskell{Bind}s,
-  src_haskell{Sig}s, Type family instances and Data family instances
+- ~ParsedSource~ is not a completely accurate reflection of the original source.
+- ~ValBinds~ separates out ~Sig~s and ~Bind~s
+- ~ClsInstDecl~ separates out ~Bind~s,
+  ~Sig~s, Type family instances and Data family instances
 - For both of these, the original source can have them in any order.
 
 ** Order in lists 2
@@ -162,18 +160,18 @@ TTG extension points for the rest
 
 ** Order in lists 3 : Solution
 
-- Each specific list is physically ordered, so for src_haskell{ValBinds} we know
+- Each specific list is physically ordered, so for ~ValBinds~ we know
   the order of the sigs, and of the binds.
 - But we don’t know the interleaving.
-- We supply this in an src_haskell{AnnSortKey}, which drives a merge process.
-- It keeps a list of src_haskell{SigDTag} or src_haskell{BindTag} for
-  a src_haskell{ValBind}, telling which list to draw from each time.
+- We supply this in an ~AnnSortKey~, which drives a merge process.
+- It keeps a list of ~SigDTag~ or ~BindTag~ for
+  a ~ValBind~, telling which list to draw from each time.
 
 ** Comments
 - Comments are the ultimate “trivia”. They have no influence on
   overall spacing and layout, but need to be preserved precisely.
 - They can also occur absolutely anywhere in the source file.
-- So we keep them in the "src_haskell{SrcSpan} on steroids" we wrap
+- So we keep them in the "~SrcSpan~ on steroids" we wrap
   everything in, and fit them in when we print, if they fit into the
   current gap.
 - It’s more complicated than that, but we will look into detail later.
@@ -206,17 +204,17 @@ Time to dive into the detail. Two main divisions
 - This means extra information can be carried, computed via type classes
 - Used for Exact Print Annotations (EPA)
 - Uses two mechanisms
-  - src_haskell{XRec} for Located things [AZ note: not part of TTG]
+  - ~XRec~ for Located things [AZ note: not part of TTG]
   - TTG extension points for the rest
 
 ** Terminology
-- AST: src_haskell{ParsedSource}
+- AST: ~ParsedSource~
 
 #+begin_src haskell
 type ParsedSource = Located (HsModule GhcPs)
 #+end_src
 
-For now we accept src_haskell{GhcPs} as simply a marker of the AST from the
+For now we accept ~GhcPs~ as simply a marker of the AST from the
 parsing phase.
 
 ** Located Things
@@ -268,7 +266,7 @@ data EpaLocation' a = EpaSpan !SrcSpan
                     | EpaDelta !DeltaPos !a
 #+end_src
 
-*** src_haskell{AnnListItem}
+*** ~AnnListItem~
 
 #+begin_src haskell
 -- | Annotation for items appearing in a list. They can have one or
@@ -293,11 +291,10 @@ Tie up to prior hand wavy part
       ...
    #+end_example
 
-- src_haskell{SrcSpan} we "believe" is the one in the
-  src_haskell{EpAnn} src_haskell{entry}, using the
-  src_haskell{EpaSpan} constructor.
+- ~SrcSpan~ we "believe" is the one in the ~EpAnn~ ~entry~, using the
+  ~EpaSpan~ constructor.
 - If we need to move things around, the surgery happens by replacing
-  it with an appropriate src_haskell{EpaDelta} version, just for the
+  it with an appropriate ~EpaDelta~ version, just for the
   point where the change happens.
 
 #+begin_notes
@@ -311,10 +308,10 @@ Tie up to prior hand wavy part
 
 - everything that is not a location, comment, or surrounding
   information, but is needed for exact printing.
-  - src_haskell{SourceText},
-  - keywords (via src_haskell{AnnKeywordId} or src_haskell{EpToken})
+  - ~SourceText~,
+  - keywords (via ~AnnKeywordId~ or ~EpToken~)
 
-*** src_haskell{AnnKeywordId}
+*** ~AnnKeywordId~
 
 Original mechanism
 #+begin_src haskell
@@ -324,9 +321,9 @@ data AnnKeywordId
     | AnnLet
 #+end_src
 
-*** src_haskell{EpToken}
+*** ~EpToken~
 
-New mechanism. May eventually supplant src_haskell{AnnKeywordId}
+New mechanism. May eventually supplant ~AnnKeywordId~
 
 #+begin_src haskell
 data EpToken (tok :: Symbol)
@@ -334,11 +331,10 @@ data EpToken (tok :: Symbol)
   | EpTok !EpaLocation
 #+end_src
 
-Used as a type src_haskell{EpTok "let"}
+Used as a type ~EpTok "let"~
 
 #+ATTR_REVEAL: :frag t
 Extract string for printing
-#+ATTR_REVEAL: :frag t
 #+begin_src haskell
 getEpTokenString :: forall tok. KnownSymbol tok => EpToken tok -> Maybe String
 getEpTokenString NoEpTok = Nothing
@@ -378,20 +374,20 @@ type instance XLet GhcPs = (EpToken "let", EpToken "in")
 - Print
 
 ** ghc-exactprint parsing
-- src_haskell{parseModule}
+- ~parseModule~
 - "best effort" with CPP
   - compares original with preprocessed, and turns the delta into
     comments
   - cannot work if =#define XX Blah= and then =XX= is used. =XX= added as a comment, as well as =Blah=
-- Honours pragmas, but you need to set src_haskell{DynFlags} for any e.g. project-wide options
+- Honours pragmas, but you need to set ~DynFlags~ for any e.g. project-wide options
 
 ** ghc-exactprint transform
-- The reason src_haskell{ghc-exactprint} exists
+- The reason ~ghc-exactprint~ exists
 - Intention: smallest changes possible
 
 *** Comments
 
-Stored in src_haskell{EpAnn}
+Stored in ~EpAnn~
 
 #+begin_src haskell
 data EpAnnComments = EpaComments
@@ -404,9 +400,9 @@ data EpAnnComments = EpaComments
 Once you decide to move thing around, you need to decide which
 comments to bring along.
 
-*** src_haskell{balanceComments}
+*** ~balanceComments~
 
-~ghc-exactprint~ has src_haskell{balanceComments} and src_haskell{balanceCommentsList}
+~ghc-exactprint~ has ~balanceComments~ and ~balanceCommentsList~
 
 These use heuristics to "attach" comments to the appropriate top level
 declaration.
@@ -445,11 +441,11 @@ foo = 3
 bar = 2
 #+end_src
 
-*** src_haskell{class FunBind} comments
+*** ~FunBind~ comments
 
-- src_haskell{class FunBind} is weird
+- ~FunBind~ is weird
 - it combines all the equations for a particular function
-- each shows up as a src_haskell{Match}, which is self-contained
+- each shows up as a ~Match~, which is self-contained
 
 #+begin_src haskell
 -- a random comment
@@ -509,7 +505,7 @@ balanceComments _libdir lp = return $ replaceDecls lp ds'
     ds' = balanceCommentsList ds
 #+end_src
 
-** src_haskell{class HasDecls}
+** ~class HasDecls~
 
 #+begin_src haskell
 class (Data t) => HasDecls t where
@@ -545,7 +541,7 @@ class (Data t) => HasDecls t where
         nn = 2
 #+end_notes
 
-*** src_haskell{replaceDecls}
+*** ~replaceDecls~
 
     #+begin_src haskell
     -- |This is a function
@@ -569,18 +565,17 @@ class (Data t) => HasDecls t where
 addLocaLDecl1 :: Changer
 addLocaLDecl1 libdir top = do
   Right (L ld (ValD _ decl)) <- withDynFlags libdir (\df -> parseDecl df "decl" "nn = 2")
-  let decl' = setEntryDP (L ld decl) (DifferentLine 1 5)
-      top' = replaceDecls top [de1', d2', d3]
-        where
-          (de1:d2:d3:_) = hsDecls top
-          (de1'',d2') = balanceComments de1 d2
-          (de1',_) = modifyValD (getLocA de1'') de1'' $ \_m d ->
-                       ((wrapDecl decl' : d), Nothing)
-  return top'
+  let
+      decl' = setEntryDP (L ld decl) (DifferentLine 1 5)
+      (de1:d2:d3:_) = hsDecls top
+      (de1',d2') = balanceComments de1 d2
+      (de1'',_) = modifyValD (getLocA de1') de1' $ \_m d ->
+                   ((wrapDecl decl' : d), Nothing)
+  return $ replaceDecls top [de1'', d2', d3]
 #+end_src
 
-*** src_haskell{modifyValD}
-- Remember src_haskell{FunBind}?
+*** ~modifyValD~
+- Remember ~FunBind~?
 
 #+begin_src haskell
 ..
@@ -609,14 +604,49 @@ Note: now that everything is pure, and connected, pretty much not
 needed.
 #+end_notes
 
+*** packFunBind, unpackFunBind
+And packFunDecl, unpackFunDecl
+
+*** addToList etc
+
+*** replaceDecls sort order
+- Remember ~AnnSortKey~?
+- It is populated in ~replaceDecls~
+- ~captureOrderBinds~
+- ~replaceDeclsClassDecl~ (and ~hsDeclsClassDecl~)
+
+- ~oderedDecls~
+  When ~NoAnnSortKey~,
+  - Assume working with an unchanged AST
+  - use the locations of the decls and sort
+  When ~AnnSortKey DeclTag~
+  - Build ~Map.Map DeclTag [LHsDecl GhcPs]~ from assorted ~ClassDecl~ parts
+  - 
+
+** Summary
+- balance comments
+- manage funbind comment details
+- manage ~where~ for adding/removing decls to ~HsValBinds~
+- track sort order
+- wrap/unwrap binds
+
 ** ghc-exactprint print
+This is the heart of the thing
+
+But will not look in detail, it is too complex
+
+Suffice to say,
+
+#+begin_src haskell
+exactPrint :: ExactPrint ast => ast -> String
+#+end_src
 
 ** Name tie-ups
-- All src_haskell{RdrName}s in the AST are src_haskell{LocatedN}, containing 
-  a src_haskell{SrcSpan} when originally parsed.
-- The src_haskell{RenamedSource} does not remove named locations,
+- All ~RdrName~ s in the AST are ~LocatedN~, containing
+  a ~SrcSpan~ when originally parsed.
+- The ~RenamedSource~ does not remove named locations,
   although it may move them around a bit.
-- So perform a generic traversal of the src_haskell{RenamedSource},
+- So perform a generic traversal of the ~RenamedSource~,
   building a map of
  #+begin_src haskell
  SrcSpan -> Name
@@ -625,9 +655,13 @@ needed.
 
 * Future
 - Fixity info
-- src_haskell{GHC_CPP}
+- ~GHC_CPP~
 - Free vars?
 - Easy Export of Name table for lookup?
-
+- ghc-exactprint API
+  - currently provisional
+  - should it be split?
+  - where should it live?
+- Link-up with ghc-lib-parser
 
 * End
