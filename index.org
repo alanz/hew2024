@@ -15,12 +15,32 @@
 #+REVEAL_THEME: white_contrast_compact_verbatim_headers
 #+REVEAL_HLEVEL: 2
 #+REVEAL_TRANS: linear
-#+REVEAL_PLUGINS: (markdown notes )
+# #+REVEAL_PLUGINS: (markdown notes )
+# #+REVEAL_PLUGINS: (markdown notes highlight toc-pogress)
+#+REVEAL_PLUGINS: (markdown notes highlight)
 #+REVEAL_EXTRA_CSS: ./local.css
+#+REVEAL_EXTRA_CSS: ./reveal.js/plugin/toc-progress/toc-progress.css
+#+REVEAL_HIGHLIGHT_CSS: %r/plugin/highlight/github.css
 #+PROPERTY: header-args    :results silent
 #+PROPERTY: header-args    :exports code
 
+
 #+ATTR_REVEAL: :reveal_slide_global_footer 'footer hello'
+
+# ####################################################
+# For TOC-progress, need in Reveal.initialize({
+#
+# // Optional libraries used to extend reveal.js
+# dependencies: [
+#     ..
+#     { src: './reveal.js/plugin/toc-progress/toc-progress.js'
+#       , async: true
+#       , callback: function() { toc_progress.initialize(); toc_progress.create(); }
+#     }
+# ]
+# });
+# ####################################################
+
 * ghc-exactprint
 
 Alan Zimmerman
@@ -32,8 +52,8 @@ ZuriHac, 2024-06-07
 
 * About Me
 - Learned Haskell in 2012
-- First GHC commit Sep 2014
 - Decided to resurrect HaRe, using GHC backend
+- First GHC commit Sep 2014
 - Led to haskell-ide-engine, to expose it to users
 - And into GHC to make it useful for this
 
@@ -42,9 +62,17 @@ ZuriHac, 2024-06-07
 - What it means inside GHC
 - What it means outside GHC
 
+  #+begin_notes
+  - Going through material, it is a huge topic, chat to me at ZuriHac
+  - First a Hand-wavy attempt to motivate the problem being solved
+  - Then how we capture the required information inside GHC, aimed at
+    GHC developers and ghc-exactprint users
+  - Finally how to use the provided facilities in the real world
+  #+end_notes
+
 * Problem Being Solved
 To allow a tool to
-- start from a GHC ParsedSource,
+- start from a ~GHC~ ~ParsedSource~,
 - make changes to it,
 - print source reflecting the changes.
 - And only the changes.
@@ -52,22 +80,22 @@ To allow a tool to
 ** Start from GHC ParsedSource
 - It must accurately reflect the input source
 - Literals
-  Add detail: (AZ note, see LiteralsTest.hs in testsuite)
 - ‘Trivia’
   Things like keywords, commas, semicolons, brackets of all kinds
-- Spacing - via SrcSpan
+- Spacing
 
 ** Literals Detail
 TBD
 (AZ note, see LiteralsTest.hs in testsuite, and HIW2021 slide)
 
 ** Capturing Trivia
-TBD
+TBD. Possibly skip this slide
 
 ** Spacing
 - Spacing is a funny thing.
-- To start with, it is just a given. This is where things are in the source, all wrapped in a SrcSpan
-- But when you change things it gets complicated
+- To start with, it is just a given. This is where things are in the
+  source, all wrapped in a SrcSpan
+- But when you want to change things it gets complicated
   - Add or delete lines
   - Move a block of code from one place to another
     - Which can also change its indentation
@@ -77,16 +105,18 @@ TBD
   - We believe its span start point
   - We believe its span end point
   - Nothing is printed outside its span
-- In other words, it is internally consistent
+- It is self-contained
   - If we apply a constant (line,col) offset to the whole thing, it
     will still print properly
 - Implication
   - If we do some book-keeping about the start offset, we can print it
     anywhere
-
+#+begin_notes
+What happens in the box, stays in the box
+#+end_notes
 ** Spacing : the trick
-- An internally consistent AST element has absolute locations
-- But when we print, we have a print head that we advance
+- A self-contained AST element has absolute locations
+- When we print, we have a print head that we advance
 - By distances calculated from the absolute locations
 So
 - We track two locations
@@ -102,14 +132,13 @@ There is one remaining problem
   - If we delete, there will be a gap
   - If we add something, there will be some kind of jump
 - Deltas
-  - At the point where we change from one internally consistent point
+  - At the point where we change from one self contained point
     to another, we supply the delta directly
   - Instead of calculating it from the offset calculation position.
   - And then set the offset calculation position according to the next
     actual span we see
   - We believe the start position in a span
   - It will come after a delta, so the spacing is known
-
 
 ** Spacing : size changes
 
@@ -132,25 +161,25 @@ There is one remaining problem
 
 Haskell is a layout-sensitive language
 
-AZ Note: Do we need this slide?
-         We will have to go down a rabbit hole for it
+#+ATTR_REVEAL: :code_attribs data-line-numbers
+#+begin_src haskell
+data DeltaPos
+  = SameLine { deltaColumn :: Int }
+  | DifferentLine { deltaLine :: Int, deltaColumn :: Int }
+#+end_src
 
+Our offset position also tracks the current indentation level, so the
+~deltaColumn~ is added to that.
 
 ** Order in lists
 
 - ~ParsedSource~ is not a completely accurate reflection of the original source.
-- ~ValBinds~ separates out ~Sig~s and ~Bind~s
-- ~ClsInstDecl~ separates out ~Bind~s,
-  ~Sig~s, Type family instances and Data family instances
-- For both of these, the original source can have them in any order.
+- ~ValBinds~ separates out ~[Sig]~  and ~[Bind]~
+- ~ClassDecl~ and  ~ClsInstDecl~ separate out ~Bind~ s,
+  ~Sig~ s, Type family instances etc
+- For all of these, the original source can have them in any order.
 
 ** Order in lists 2
- AST implements “Trees That Grow”
-This means extra information can be carried, computed via type classes
-Used for Exact Print Annotations (EPA)
-Uses two mechanisms
-XRec for Located things
-TTG extension points for the rest
 
 - For an unmodified AST there is no problem, you just sort by start of
   span.
@@ -167,6 +196,35 @@ TTG extension points for the rest
 - It keeps a list of ~SigDTag~ or ~BindTag~ for
   a ~ValBind~, telling which list to draw from each time.
 
+
+** Order in lists, Annotation.hs comment
+
+- From ~Note [AnnSortKey]~
+
+We use it as a merge selector, and have one entry for each bind and
+signature.
+
+Example binds
+
+   #+begin_src haskell
+   fa :: Int
+   fa = 1
+
+   fb :: Char
+   fb = 'c'
+   #+end_src
+
+This gives us ~ValBinds~ having
+
+  #+begin_src haskell
+  binds: fa = 1 , fb = 'c'
+  sigs:  fa :: Int, fb :: Char
+  tags: SigTag, BindTag, SigTag, BindTag
+  #+end_src
+
+so we draw first from the signatures, then the binds, and same again.
+
+
 ** Comments
 - Comments are the ultimate “trivia”. They have no influence on
   overall spacing and layout, but need to be preserved precisely.
@@ -177,7 +235,7 @@ TTG extension points for the rest
 - It’s more complicated than that, but we will look into detail later.
 
 ** Trailing Items
-- The consistency belief we base everything on is that everything fits
+- The self-contained belief we base everything on is that everything fits
   inside the AST Element span.
 - This is true for everything, except trailing items.
 - If you consider a list of items, each item is a standalone entity
@@ -185,7 +243,6 @@ TTG extension points for the rest
 - So if you move the item elsewhere, or replace it with something
   else, the trailing comma should be managed as part of that location.
 - Others are semicolons, vertical bars, single and double arrows
-
 
 ** End of Hand Wavy Part
 
