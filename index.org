@@ -106,7 +106,7 @@ Trivia: things like keywords, commas, semicolons, brackets of all kinds
 let
    fa :: Int
    fa = 1
- in fa
+in fa
 #+end_src
 
 #+begin_notes
@@ -126,16 +126,16 @@ Trivia is `let`, `::`, `in`
 #+end_notes
 
 ** Principle for Spacing
-A located AST element is treated as a unit
+A located AST element is treated as a self-contained unit
 #+ATTR_REVEAL: :frag (appear appear appear)
 - We believe its span start point
 - We believe its span end point
 - Nothing is printed outside its span
 
 #+begin_notes
-- It is self-contained
-  - If we apply a constant (line,col) offset to the whole thing, it
-    will still print properly
+- Self-contained: we can print it based only on what is inside
+- If we apply a constant (line,col) offset to the whole thing, it will
+  still print properly
 - Implication
   - If we do some book-keeping about the start offset, we can print it
     anywhere
@@ -295,14 +295,17 @@ so we draw first from the signatures, then the binds, and same again.
 ** End of Hand Wavy Part
 
 - Hopefully you now have a high level understanding of what the exact
-  print annotations are for.
-- Now we can look into some details of how things are captured.
+  print annotations are for
+- Now we can look into some details of how things are captured in GHC
 
 
 * What it means inside GHC
-Time to dive into the detail. Two main divisions
 - Located things
 - Internal Annotations
+
+#+begin_notes
+Time to dive into the detail. Two main divisions
+#+end_notes
 
 ** Terminology
 - AST: ~ParsedSource~
@@ -405,7 +408,7 @@ Tie up to prior hand wavy part
 
 - everything that is not a location, comment, or surrounding
   information, but is needed for exact printing.
-  - ~SourceText~,
+  - ~SourceText~ for Literals,
   - keywords (via ~AnnKeywordId~ or ~EpToken~)
 
 *** ~AnnKeywordId~
@@ -416,6 +419,7 @@ data AnnKeywordId
     ...
     | AnnIn
     | AnnLet
+data AddEpAnn = AddEpAnn AnnKeywordId EpaLocation
 #+end_src
 
 *** ~EpToken~
@@ -429,6 +433,10 @@ data EpToken (tok :: Symbol)
 #+end_src
 
 Used as a type ~EpTok "let"~
+
+#+begin_notes
+Apart from ~NoEpTok~, this is isomorphic to ~AddEpAnn~
+#+end_notes
 
 #+ATTR_REVEAL: :frag t
 #+begin_src haskell
@@ -453,14 +461,12 @@ data HsExpr p
 
 type family XLet x
 #+end_src
-
 #+ATTR_REVEAL: :frag t
 #+begin_src haskell
 type instance XLet GhcPs = (EpToken "let", EpToken "in")
 #+end_src
-
 #+ATTR_REVEAL: :frag t
-[[./images-work/let-in-boxes-middle.png]]
+[[./images-work/let-in-boxes-middle-smaller.png]]
 
 * What it means outside GHC
 - The Exact Print Annotations are packaged for use in [[https://hackage.haskell.org/package/ghc-exactprint][ghc-exactprint]]
