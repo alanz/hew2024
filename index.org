@@ -17,7 +17,7 @@
 #+REVEAL_TRANS: linear
 # #+REVEAL_PLUGINS: (markdown notes )
 # #+REVEAL_PLUGINS: (markdown notes highlight toc-pogress)
-#+REVEAL_PLUGINS: (markdown notes highlight)
+#+REVEAL_PLUGINS: (markdown notes highlight zoom)
 #+REVEAL_EXTRA_CSS: ./local.css
 #+REVEAL_EXTRA_CSS: ./reveal.js/plugin/toc-progress/toc-progress.css
 #+REVEAL_HIGHLIGHT_CSS: %r/plugin/highlight/github.css
@@ -62,36 +62,60 @@ ZuriHac, 2024-06-07
 - What it means inside GHC
 - What it means outside GHC
 
-  #+begin_notes
-  - Going through material, it is a huge topic, chat to me at ZuriHac
-  - First a Hand-wavy attempt to motivate the problem being solved
-  - Then how we capture the required information inside GHC, aimed at
-    GHC developers and ghc-exactprint users
-  - Finally how to use the provided facilities in the real world
-  #+end_notes
+#+begin_notes
+- Going through material, it is a huge topic, chat to me at ZuriHac
+- First a Hand-wavy attempt to motivate the problem being solved
+- Then how we capture the required information inside GHC, aimed at
+  GHC developers and ghc-exactprint users
+- Finally how to use the provided facilities in the real world
+#+end_notes
 
 * Problem Being Solved
 To allow a tool to
 - start from a ~GHC~ ~ParsedSource~,
 - make changes to it,
 - print source reflecting the changes.
+#+ATTR_REVEAL: :frag t
 - And only the changes.
 
 ** Start from GHC ParsedSource
 - It must accurately reflect the input source
-- Literals
-- ‘Trivia’
-  Things like keywords, commas, semicolons, brackets of all kinds
-- Spacing
+    - Literals
+    - ‘Trivia’
+    - Spacing
 
-** Literals Detail
-TBD
-(AZ note, see LiteralsTest.hs in testsuite, and HIW2021 slide)
+#+begin_notes
+Trivia: things like keywords, commas, semicolons, brackets of all kinds
+#+end_notes
 
-** Capturing Trivia
-TBD. Possibly skip this slide
+** Literals
+#+ATTR_REVEAL: :frag appear
+#+begin_src haskell
+1, 0x01, 001, 0_01
+#+end_src
+
+#+ATTR_REVEAL: :frag appear
+#+begin_src haskell
+{-# Language CPP #-}
+{-# LANGUAGE CPP #-}
+#+end_src
+
+** Trivia
+
+#+begin_src haskell
+let
+   fa :: Int
+   fa = 1
+ in fa
+#+end_src
+
+#+begin_notes
+Trivia is `let`, `::`, `in`
+#+end_notes
 
 ** Spacing
+
+#+begin_notes
 - Spacing is a funny thing.
 - To start with, it is just a given. This is where things are in the
   source, all wrapped in a SrcSpan
@@ -99,25 +123,30 @@ TBD. Possibly skip this slide
   - Add or delete lines
   - Move a block of code from one place to another
     - Which can also change its indentation
+#+end_notes
 
-** Principles for Spacing
-- A located AST element is treated as a unit
-  - We believe its span start point
-  - We believe its span end point
-  - Nothing is printed outside its span
+** Principle for Spacing
+A located AST element is treated as a unit
+#+ATTR_REVEAL: :frag (appear appear appear)
+- We believe its span start point
+- We believe its span end point
+- Nothing is printed outside its span
+
+#+begin_notes
 - It is self-contained
   - If we apply a constant (line,col) offset to the whole thing, it
     will still print properly
 - Implication
   - If we do some book-keeping about the start offset, we can print it
     anywhere
-#+begin_notes
-What happens in the box, stays in the box
+- What happens in the box, stays in the box
 #+end_notes
-** Spacing : the trick
+
+** Spacing : printing
 - A self-contained AST element has absolute locations
 - When we print, we have a print head that we advance
 - By distances calculated from the absolute locations
+#+begin_notes
 So
 - We track two locations
   - The output print position, which always advances as we print
@@ -125,6 +154,19 @@ So
     - (remember “we believe the start position of a span”)
   - And also set every time we exit a span (“belief”)
   - Otherwise it also advances as we print
+#+end_notes
+
+** Spacing example
+[[./images-work/let-in-boxes-raw.png]]
+
+** Spacing example: top box
+[[./images-work/let-in-boxes-top.png]]
+
+** Spacing example: interior boxes
+[[./images-work/let-in-boxes-middle.png]]
+
+** Spacing example: spacing
+[[./images-work/let-in-boxes-spacing.png]]
 
 ** Spacing : the missing piece
 There is one remaining problem
@@ -133,12 +175,18 @@ There is one remaining problem
   - If we add something, there will be some kind of jump
 - Deltas
   - At the point where we change from one self contained point
-    to another, we supply the delta directly
+    to a changed one, we supply the delta directly
   - Instead of calculating it from the offset calculation position.
   - And then set the offset calculation position according to the next
     actual span we see
   - We believe the start position in a span
   - It will come after a delta, so the spacing is known
+
+** Spacing size changes example
+[[./images-work/let-in-longer-boxes-raw.png]]
+
+** Spacing size changes example: spacing
+[[./images-work/let-in-longer-boxes-spacing.png]]
 
 ** Spacing : size changes
 
@@ -256,14 +304,6 @@ Time to dive into the detail. Two main divisions
 - Located things
 - Internal Annotations
 
-** Trees That Grow
-- GHC AST implements “Trees That Grow”
-- This means extra information can be carried, computed via type classes
-- Used for Exact Print Annotations (EPA)
-- Uses two mechanisms
-  - ~XRec~ for Located things [AZ note: not part of TTG]
-  - TTG extension points for the rest
-
 ** Terminology
 - AST: ~ParsedSource~
 
@@ -276,7 +316,7 @@ parsing phase.
 
 ** Located Things
 
-The AST is layered, in that alternate layer ...
+The AST is layered, as we saw in the boxes diagrams earlier.
 
 *** Location
 
@@ -361,7 +401,7 @@ Tie up to prior hand wavy part
 - For ghc-exactprint old hands, makeDeltaAst is no longer required (but still exists)
 #+end_notes
 
-** "Trivia"
+** Internal Annotations
 
 - everything that is not a location, comment, or surrounding
   information, but is needed for exact printing.
@@ -391,18 +431,21 @@ data EpToken (tok :: Symbol)
 Used as a type ~EpTok "let"~
 
 #+ATTR_REVEAL: :frag t
-Extract string for printing
 #+begin_src haskell
+-- Extract string for printing
 getEpTokenString :: forall tok. KnownSymbol tok => EpToken tok -> Maybe String
 getEpTokenString NoEpTok = Nothing
 getEpTokenString (EpTok _) = Just $ symbolVal (Proxy @tok)
 #+end_src
 
+*** Internal Annotation storage
 
-*** "Trivia" storage
-Stored in the TTG extension points.
+*** Trees That Grow
+- GHC AST implements “Trees That Grow”
+- This means extra information can be carried, computed via type classes
+- "Extension points"
 
-Refresher
+*** Refresher
 #+begin_src haskell
 data HsExpr p
   ...
@@ -416,6 +459,8 @@ type family XLet x
 type instance XLet GhcPs = (EpToken "let", EpToken "in")
 #+end_src
 
+#+ATTR_REVEAL: :frag t
+[[./images-work/let-in-boxes-middle.png]]
 
 * What it means outside GHC
 - The Exact Print Annotations are packaged for use in [[https://hackage.haskell.org/package/ghc-exactprint][ghc-exactprint]]

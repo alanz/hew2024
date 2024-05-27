@@ -24,22 +24,22 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 <ul>
-<li><a href="#slide-org1b5b48b">ghc-exactprint</a></li>
-<li><a href="#slide-orgaa185d6">About Me</a></li>
-<li><a href="#slide-orgb60d4a2">This Talk</a></li>
-<li><a href="#slide-org9ab71c4">Problem Being Solved</a></li>
-<li><a href="#slide-org66725e5">What it means inside GHC</a></li>
-<li><a href="#slide-org8be9260">What it means outside GHC</a></li>
-<li><a href="#slide-org7919649">Future</a></li>
-<li><a href="#slide-org554edfd">End</a></li>
+<li><a href="#slide-org68c90d0">ghc-exactprint</a></li>
+<li><a href="#slide-org17bb3eb">About Me</a></li>
+<li><a href="#slide-org2681d1f">This Talk</a></li>
+<li><a href="#slide-org8e6f946">Problem Being Solved</a></li>
+<li><a href="#slide-orgb548609">What it means inside GHC</a></li>
+<li><a href="#slide-orgcd585a0">What it means outside GHC</a></li>
+<li><a href="#slide-orgcc1ab3d">Future</a></li>
+<li><a href="#slide-org70c255b">End</a></li>
 </ul>
 </div>
 </div>
 </section>
 
 <section>
-<section id="slide-org1b5b48b">
-<h2 id="org1b5b48b">ghc-exactprint</h2>
+<section id="slide-org68c90d0">
+<h2 id="org68c90d0">ghc-exactprint</h2>
 <p>
 Alan Zimmerman
 </p>
@@ -56,8 +56,8 @@ ZuriHac, 2024-06-07
 </section>
 </section>
 <section>
-<section id="slide-orgaa185d6">
-<h2 id="orgaa185d6">About Me</h2>
+<section id="slide-org17bb3eb">
+<h2 id="org17bb3eb">About Me</h2>
 <ul>
 <li>Learned Haskell in 2012</li>
 <li>Decided to resurrect HaRe, using GHC backend</li>
@@ -70,14 +70,14 @@ ZuriHac, 2024-06-07
 </section>
 </section>
 <section>
-<section id="slide-orgb60d4a2">
-<h2 id="orgb60d4a2">This Talk</h2>
+<section id="slide-org2681d1f">
+<h2 id="org2681d1f">This Talk</h2>
 <ul>
 <li>Overview of the problem being solved</li>
 <li>What it means inside GHC</li>
-<li><p>
-What it means outside GHC
-</p>
+<li>What it means outside GHC</li>
+
+</ul>
 
 <aside class="notes">
 <ul>
@@ -89,15 +89,13 @@ GHC developers and ghc-exactprint users</li>
 
 </ul>
 
-</aside></li>
-
-</ul>
+</aside>
 
 </section>
 </section>
 <section>
-<section id="slide-org9ab71c4">
-<h2 id="org9ab71c4">Problem Being Solved</h2>
+<section id="slide-org8e6f946">
+<h2 id="org8e6f946">Problem Being Solved</h2>
 <p>
 To allow a tool to
 </p>
@@ -105,6 +103,9 @@ To allow a tool to
 <li>start from a <code>GHC</code> <code>ParsedSource</code>,</li>
 <li>make changes to it,</li>
 <li>print source reflecting the changes.</li>
+
+</ul>
+<ul class="fragment">
 <li>And only the changes.</li>
 
 </ul>
@@ -112,41 +113,71 @@ To allow a tool to
 </section>
 </section>
 <section>
-<section id="slide-orgd6bcf7b">
-<h3 id="orgd6bcf7b">Start from GHC ParsedSource</h3>
+<section id="slide-org384cdf6">
+<h3 id="org384cdf6">Start from GHC ParsedSource</h3>
 <ul>
-<li>It must accurately reflect the input source</li>
+<li>It must accurately reflect the input source
+<ul>
 <li>Literals</li>
-<li>‘Trivia’
-Things like keywords, commas, semicolons, brackets of all kinds</li>
+<li>‘Trivia’</li>
 <li>Spacing</li>
+
+</ul></li>
 
 </ul>
 
-</section>
-</section>
-<section>
-<section id="slide-orgaae03b0">
-<h3 id="orgaae03b0">Literals Detail</h3>
+<aside class="notes">
 <p>
-TBD
-(AZ note, see LiteralsTest.hs in testsuite, and HIW2021 slide)
+Trivia: things like keywords, commas, semicolons, brackets of all kinds
 </p>
+
+</aside>
 
 </section>
 </section>
 <section>
-<section id="slide-org7a1ee26">
-<h3 id="org7a1ee26">Capturing Trivia</h3>
-<p>
-TBD. Possibly skip this slide
-</p>
+<section id="slide-org57e28b3">
+<h3 id="org57e28b3">Literals</h3>
+<div class="org-src-container">
+
+<pre class="fragment appear"><code class="haskell" >1, 0x01, 001, 0_01
+</code></pre>
+</div>
+
+<div class="org-src-container">
+
+<pre class="fragment appear"><code class="haskell" >{-# Language CPP #-}
+{-# LANGUAGE CPP #-}
+</code></pre>
+</div>
 
 </section>
 </section>
 <section>
-<section id="slide-org0d8c27b">
-<h3 id="org0d8c27b">Spacing</h3>
+<section id="slide-orgbe03839">
+<h3 id="orgbe03839">Trivia</h3>
+<div class="org-src-container">
+
+<pre><code class="haskell" >let
+   fa :: Int
+   fa = 1
+ in fa
+</code></pre>
+</div>
+
+<aside class="notes">
+<p>
+Trivia is `let`, `::`, `in`
+</p>
+
+</aside>
+
+</section>
+</section>
+<section>
+<section id="slide-orgada3ffe">
+<h3 id="orgada3ffe">Spacing</h3>
+<aside class="notes">
 <ul>
 <li>Spacing is a funny thing.</li>
 <li>To start with, it is just a given. This is where things are in the
@@ -164,19 +195,25 @@ source, all wrapped in a SrcSpan</li>
 
 </ul>
 
+</aside>
+
 </section>
 </section>
 <section>
-<section id="slide-org1af9fcb">
-<h3 id="org1af9fcb">Principles for Spacing</h3>
+<section id="slide-orgfe50a48">
+<h3 id="orgfe50a48">Principle for Spacing</h3>
+<p>
+A located AST element is treated as a unit
+</p>
 <ul>
-<li>A located AST element is treated as a unit
-<ul>
-<li>We believe its span start point</li>
-<li>We believe its span end point</li>
-<li>Nothing is printed outside its span</li>
+<li class="fragment appear">We believe its span start point</li>
+<li class="fragment appear">We believe its span end point</li>
+<li class="fragment appear">Nothing is printed outside its span</li>
 
-</ul></li>
+</ul>
+
+<aside class="notes">
+<ul>
 <li>It is self-contained
 <ul>
 <li>If we apply a constant (line,col) offset to the whole thing, it
@@ -189,25 +226,24 @@ will still print properly</li>
 anywhere</li>
 
 </ul></li>
+<li>What happens in the box, stays in the box</li>
 
 </ul>
-<aside class="notes">
-<p>
-What happens in the box, stays in the box
-</p>
 
 </aside>
+
 </section>
 </section>
 <section>
-<section id="slide-orgff26d60">
-<h3 id="orgff26d60">Spacing : the trick</h3>
+<section id="slide-org1cc9d46">
+<h3 id="org1cc9d46">Spacing : printing</h3>
 <ul>
 <li>A self-contained AST element has absolute locations</li>
 <li>When we print, we have a print head that we advance</li>
 <li>By distances calculated from the absolute locations</li>
 
 </ul>
+<aside class="notes">
 <p>
 So
 </p>
@@ -227,11 +263,57 @@ So
 
 </ul>
 
+</aside>
+
 </section>
 </section>
 <section>
-<section id="slide-org9157fb2">
-<h3 id="org9157fb2">Spacing : the missing piece</h3>
+<section id="slide-orgdb5d3ad">
+<h3 id="orgdb5d3ad">Spacing example</h3>
+
+<div id="orgcaf8a2d" class="figure">
+<p><img src="./images-work/let-in-boxes-raw.png" alt="let-in-boxes-raw.png" />
+</p>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-org3052025">
+<h3 id="org3052025">Spacing example: top box</h3>
+
+<div id="org342e398" class="figure">
+<p><img src="./images-work/let-in-boxes-top.png" alt="let-in-boxes-top.png" />
+</p>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-org59a297f">
+<h3 id="org59a297f">Spacing example: interior boxes</h3>
+
+<div id="org6ee393b" class="figure">
+<p><img src="./images-work/let-in-boxes-middle.png" alt="let-in-boxes-middle.png" />
+</p>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-org0e4e0fb">
+<h3 id="org0e4e0fb">Spacing example: spacing</h3>
+
+<div id="org06be43a" class="figure">
+<p><img src="./images-work/let-in-boxes-spacing.png" alt="let-in-boxes-spacing.png" />
+</p>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-org7d404eb">
+<h3 id="org7d404eb">Spacing : the missing piece</h3>
 <p>
 There is one remaining problem
 </p>
@@ -245,7 +327,7 @@ There is one remaining problem
 <li>Deltas
 <ul>
 <li>At the point where we change from one self contained point
-to another, we supply the delta directly</li>
+to a changed one, we supply the delta directly</li>
 <li>Instead of calculating it from the offset calculation position.</li>
 <li>And then set the offset calculation position according to the next
 actual span we see</li>
@@ -259,8 +341,30 @@ actual span we see</li>
 </section>
 </section>
 <section>
-<section id="slide-org4ca474a">
-<h3 id="org4ca474a">Spacing : size changes</h3>
+<section id="slide-orgba9c770">
+<h3 id="orgba9c770">Spacing size changes example</h3>
+
+<div id="org1a19277" class="figure">
+<p><img src="./images-work/let-in-longer-boxes-raw.png" alt="let-in-longer-boxes-raw.png" />
+</p>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-org95b48a3">
+<h3 id="org95b48a3">Spacing size changes example: spacing</h3>
+
+<div id="orgd8e5e1b" class="figure">
+<p><img src="./images-work/let-in-longer-boxes-spacing.png" alt="let-in-longer-boxes-spacing.png" />
+</p>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-org1aeb9f5">
+<h3 id="org1aeb9f5">Spacing : size changes</h3>
 <ul>
 <li>A typical change is to rename a variable.</li>
 <li>The name may be longer or shorter.</li>
@@ -274,8 +378,8 @@ actual span we see</li>
 </section>
 </section>
 <section>
-<section id="slide-org63e66ce">
-<h3 id="org63e66ce">Spacing : size changes 2</h3>
+<section id="slide-org387cf54">
+<h3 id="org387cf54">Spacing : size changes 2</h3>
 <ul>
 <li>The same principle holds for bigger changes.</li>
 <li>If we add additional content inside a span, it does not matter,</li>
@@ -288,8 +392,8 @@ entry spacing</li>
 </section>
 </section>
 <section>
-<section id="slide-org9679c8b">
-<h3 id="org9679c8b">Spacing : layout</h3>
+<section id="slide-orga789125">
+<h3 id="orga789125">Spacing : layout</h3>
 <p>
 Haskell is a layout-sensitive language
 </p>
@@ -310,8 +414,8 @@ Our offset position also tracks the current indentation level, so the
 </section>
 </section>
 <section>
-<section id="slide-org77ccd2d">
-<h3 id="org77ccd2d">Order in lists</h3>
+<section id="slide-org14c2b6b">
+<h3 id="org14c2b6b">Order in lists</h3>
 <ul>
 <li><code>ParsedSource</code> is not a completely accurate reflection of the original source.</li>
 <li><code>ValBinds</code> separates out <code>[Sig]</code>  and <code>[Bind]</code></li>
@@ -324,8 +428,8 @@ Our offset position also tracks the current indentation level, so the
 </section>
 </section>
 <section>
-<section id="slide-orgf628ae2">
-<h3 id="orgf628ae2">Order in lists 2</h3>
+<section id="slide-org026cea7">
+<h3 id="org026cea7">Order in lists 2</h3>
 <ul>
 <li>For an unmodified AST there is no problem, you just sort by start of
 span.</li>
@@ -338,8 +442,8 @@ in ones from elsewhere.</li>
 </section>
 </section>
 <section>
-<section id="slide-org32b1ead">
-<h3 id="org32b1ead">Order in lists 3 : Solution</h3>
+<section id="slide-orga71c007">
+<h3 id="orga71c007">Order in lists 3 : Solution</h3>
 <ul>
 <li>Each specific list is physically ordered, so for <code>ValBinds</code> we know
 the order of the sigs, and of the binds.</li>
@@ -354,8 +458,8 @@ a <code>ValBind</code>, telling which list to draw from each time.</li>
 </section>
 </section>
 <section>
-<section id="slide-org3ff53ab">
-<h3 id="org3ff53ab">Order in lists, Annotation.hs comment</h3>
+<section id="slide-org3a133a2">
+<h3 id="org3a133a2">Order in lists, Annotation.hs comment</h3>
 <ul>
 <li>From <code>Note [AnnSortKey]</code></li>
 
@@ -400,8 +504,8 @@ so we draw first from the signatures, then the binds, and same again.
 </section>
 </section>
 <section>
-<section id="slide-org518a507">
-<h3 id="org518a507">Comments</h3>
+<section id="slide-org157e276">
+<h3 id="org157e276">Comments</h3>
 <ul>
 <li>Comments are the ultimate “trivia”. They have no influence on
 overall spacing and layout, but need to be preserved precisely.</li>
@@ -416,8 +520,8 @@ current gap.</li>
 </section>
 </section>
 <section>
-<section id="slide-orgc68d57f">
-<h3 id="orgc68d57f">Trailing Items</h3>
+<section id="slide-org87a525c">
+<h3 id="org87a525c">Trailing Items</h3>
 <ul>
 <li>The self-contained belief we base everything on is that everything fits
 inside the AST Element span.</li>
@@ -433,8 +537,8 @@ else, the trailing comma should be managed as part of that location.</li>
 </section>
 </section>
 <section>
-<section id="slide-orgac5fc45">
-<h3 id="orgac5fc45">End of Hand Wavy Part</h3>
+<section id="slide-org47712cf">
+<h3 id="org47712cf">End of Hand Wavy Part</h3>
 <ul>
 <li>Hopefully you now have a high level understanding of what the exact
 print annotations are for.</li>
@@ -446,8 +550,8 @@ print annotations are for.</li>
 </section>
 </section>
 <section>
-<section id="slide-org66725e5">
-<h2 id="org66725e5">What it means inside GHC</h2>
+<section id="slide-orgb548609">
+<h2 id="orgb548609">What it means inside GHC</h2>
 <p>
 Time to dive into the detail. Two main divisions
 </p>
@@ -460,26 +564,8 @@ Time to dive into the detail. Two main divisions
 </section>
 </section>
 <section>
-<section id="slide-org9bd2743">
-<h3 id="org9bd2743">Trees That Grow</h3>
-<ul>
-<li>GHC AST implements “Trees That Grow”</li>
-<li>This means extra information can be carried, computed via type classes</li>
-<li>Used for Exact Print Annotations (EPA)</li>
-<li>Uses two mechanisms
-<ul>
-<li><code>XRec</code> for Located things [AZ note: not part of TTG]</li>
-<li>TTG extension points for the rest</li>
-
-</ul></li>
-
-</ul>
-
-</section>
-</section>
-<section>
-<section id="slide-orgf2cae78">
-<h3 id="orgf2cae78">Terminology</h3>
+<section id="slide-org4cf8da6">
+<h3 id="org4cf8da6">Terminology</h3>
 <ul>
 <li>AST: <code>ParsedSource</code></li>
 
@@ -499,15 +585,15 @@ parsing phase.
 </section>
 </section>
 <section>
-<section id="slide-org5b6617e">
-<h3 id="org5b6617e">Located Things</h3>
+<section id="slide-org3481b7e">
+<h3 id="org3481b7e">Located Things</h3>
 <p>
-The AST is layered, in that alternate layer &#x2026;
+The AST is layered, as we saw in the boxes diagrams earlier.
 </p>
 
 </section>
-<section id="slide-org0ae06e7">
-<h4 id="org0ae06e7">Location</h4>
+<section id="slide-orgcb68473">
+<h4 id="orgcb68473">Location</h4>
 <div class="org-src-container">
 
 <pre><code class="haskell" >type family XRec p a = r | r -&gt; a
@@ -540,8 +626,8 @@ type LocatedA = GenLocated SrcSpanAnnA
 </div>
 
 </section>
-<section id="slide-orgc0b118a">
-<h4 id="orgc0b118a">EpAnn</h4>
+<section id="slide-orgdba1e16">
+<h4 id="orgdba1e16">EpAnn</h4>
 <div class="org-src-container">
 
 <pre><code class="haskell" >data EpAnn ann = EpAnn
@@ -562,8 +648,8 @@ data EpaLocation' a = EpaSpan !SrcSpan
 </div>
 
 </section>
-<section id="slide-org77af8f3">
-<h4 id="org77af8f3"><code>AnnListItem</code></h4>
+<section id="slide-org1a49dc1">
+<h4 id="org1a49dc1"><code>AnnListItem</code></h4>
 <div class="org-src-container">
 
 <pre><code class="haskell" >-- | Annotation for items appearing in a list. They can have one or
@@ -576,12 +662,12 @@ data AnnListItem
 </div>
 
 </section>
-<section id="slide-org167daf2">
-<h4 id="org167daf2">Sanity check</h4>
+<section id="slide-orga1b7526">
+<h4 id="orga1b7526">Sanity check</h4>
 <p>
 Tie up to prior hand wavy part
 </p>
-<pre class="example" id="org4355254">
+<pre class="example" id="org8b7a0a1">
 (L
  (EpAnn
   (EpaSpan { DumpParsedAst.hs:5:1-16 })
@@ -615,8 +701,8 @@ source of truth, the thing we believe.</li>
 </section>
 </section>
 <section>
-<section id="slide-orgec4e697">
-<h3 id="orgec4e697">"Trivia"</h3>
+<section id="slide-org98e1c3e">
+<h3 id="org98e1c3e">Internal Annotations</h3>
 <ul>
 <li>everything that is not a location, comment, or surrounding
 information, but is needed for exact printing.
@@ -629,8 +715,8 @@ information, but is needed for exact printing.
 </ul>
 
 </section>
-<section id="slide-org5866d9e">
-<h4 id="org5866d9e"><code>AnnKeywordId</code></h4>
+<section id="slide-org021d745">
+<h4 id="org021d745"><code>AnnKeywordId</code></h4>
 <p>
 Original mechanism
 </p>
@@ -644,8 +730,8 @@ Original mechanism
 </div>
 
 </section>
-<section id="slide-orgb7b48af">
-<h4 id="orgb7b48af"><code>EpToken</code></h4>
+<section id="slide-org5b08741">
+<h4 id="org5b08741"><code>EpToken</code></h4>
 <p>
 New mechanism. May eventually supplant <code>AnnKeywordId</code>
 </p>
@@ -662,28 +748,32 @@ New mechanism. May eventually supplant <code>AnnKeywordId</code>
 Used as a type <code>EpTok "let"</code>
 </p>
 
-<p class="fragment">
-Extract string for printing
-</p>
 <div class="org-src-container">
 
-<pre><code class="haskell" >getEpTokenString :: forall tok. KnownSymbol tok =&gt; EpToken tok -&gt; Maybe String
+<pre class="fragment"><code class="haskell" >-- Extract string for printing
+getEpTokenString :: forall tok. KnownSymbol tok =&gt; EpToken tok -&gt; Maybe String
 getEpTokenString NoEpTok = Nothing
 getEpTokenString (EpTok _) = Just $ symbolVal (Proxy @tok)
 </code></pre>
 </div>
 
+</section>
+<section id="slide-org4c1012e">
+<h4 id="org4c1012e">Internal Annotation storage</h4>
 
 </section>
-<section id="slide-orgc43f9ba">
-<h4 id="orgc43f9ba">"Trivia" storage</h4>
-<p>
-Stored in the TTG extension points.
-</p>
+<section id="slide-orgc74dcb5">
+<h4 id="orgc74dcb5">Trees That Grow</h4>
+<ul>
+<li>GHC AST implements “Trees That Grow”</li>
+<li>This means extra information can be carried, computed via type classes</li>
+<li>"Extension points"</li>
 
-<p>
-Refresher
-</p>
+</ul>
+
+</section>
+<section id="slide-orgfa45054">
+<h4 id="orgfa45054">Refresher</h4>
 <div class="org-src-container">
 
 <pre><code class="haskell" >data HsExpr p
@@ -701,11 +791,16 @@ type family XLet x
 </div>
 
 
+<div id="org930b496" class="figure">
+<p><img src="./images-work/let-in-boxes-middle.png" alt="let-in-boxes-middle.png" class="fragment" />
+</p>
+</div>
+
 </section>
 </section>
 <section>
-<section id="slide-org8be9260">
-<h2 id="org8be9260">What it means outside GHC</h2>
+<section id="slide-orgcd585a0">
+<h2 id="orgcd585a0">What it means outside GHC</h2>
 <ul>
 <li>The Exact Print Annotations are packaged for use in <a href="https://hackage.haskell.org/package/ghc-exactprint">ghc-exactprint</a></li>
 <li>Generally a "hidden" library, enabling others
@@ -722,8 +817,8 @@ type family XLet x
 </section>
 </section>
 <section>
-<section id="slide-org7cdfdaf">
-<h3 id="org7cdfdaf">ghc-exactprint big picture</h3>
+<section id="slide-org478a93f">
+<h3 id="org478a93f">ghc-exactprint big picture</h3>
 <ul>
 <li>Parse</li>
 <li>Transform</li>
@@ -734,8 +829,8 @@ type family XLet x
 </section>
 </section>
 <section>
-<section id="slide-org30adc7c">
-<h3 id="org30adc7c">ghc-exactprint parsing</h3>
+<section id="slide-org1f996b5">
+<h3 id="org1f996b5">ghc-exactprint parsing</h3>
 <ul>
 <li><code>parseModule</code></li>
 <li>"best effort" with CPP
@@ -752,8 +847,8 @@ comments</li>
 </section>
 </section>
 <section>
-<section id="slide-org6f2afe9">
-<h3 id="org6f2afe9">ghc-exactprint transform</h3>
+<section id="slide-orgb3aaee4">
+<h3 id="orgb3aaee4">ghc-exactprint transform</h3>
 <ul>
 <li>The reason <code>ghc-exactprint</code> exists</li>
 <li>Intention: smallest changes possible</li>
@@ -761,8 +856,8 @@ comments</li>
 </ul>
 
 </section>
-<section id="slide-org8bb6a4b">
-<h4 id="org8bb6a4b">Comments</h4>
+<section id="slide-org65c727a">
+<h4 id="org65c727a">Comments</h4>
 <p>
 Stored in <code>EpAnn</code>
 </p>
@@ -783,8 +878,8 @@ comments to bring along.
 </p>
 
 </section>
-<section id="slide-orgc05d8bd">
-<h4 id="orgc05d8bd"><code>balanceComments</code></h4>
+<section id="slide-orgf0a8507">
+<h4 id="orgf0a8507"><code>balanceComments</code></h4>
 <p>
 <code>ghc-exactprint</code> has <code>balanceComments</code> and <code>balanceCommentsList</code>
 </p>
@@ -812,8 +907,8 @@ bar = 2
 
 
 </section>
-<section id="slide-org3216aba">
-<h4 id="org3216aba">becomes</h4>
+<section id="slide-org402dd3b">
+<h4 id="org402dd3b">becomes</h4>
 <div class="org-src-container">
 
 <pre><code class="haskell" >-- a random comment
@@ -838,8 +933,8 @@ bar = 2
 </div>
 
 </section>
-<section id="slide-org0782c22">
-<h4 id="org0782c22"><code>FunBind</code> comments</h4>
+<section id="slide-orga9c93bd">
+<h4 id="orga9c93bd"><code>FunBind</code> comments</h4>
 <ul>
 <li><code>FunBind</code> is weird</li>
 <li>it combines all the equations for a particular function</li>
@@ -865,8 +960,8 @@ foo False = 2
 </div>
 
 </section>
-<section id="slide-orga4ad978">
-<h4 id="orga4ad978">becomes</h4>
+<section id="slide-org4a86054">
+<h4 id="org4a86054">becomes</h4>
 <div class="org-src-container">
 
 <pre><code class="haskell" >-- a random comment
@@ -915,8 +1010,8 @@ On FunBind following comments
 </div>
 
 </section>
-<section id="slide-orgb6a87fc">
-<h4 id="orgb6a87fc">Produced by</h4>
+<section id="slide-org615ba7e">
+<h4 id="org615ba7e">Produced by</h4>
 <div class="org-src-container">
 
 <pre><code class="haskell" >test = TestList [mkTestModChange libdir balanceComments "AFile.hs"]
@@ -932,8 +1027,8 @@ balanceComments _libdir lp = return $ replaceDecls lp ds'
 </section>
 </section>
 <section>
-<section id="slide-orgc18b5d0">
-<h3 id="orgc18b5d0"><code>class HasDecls</code></h3>
+<section id="slide-org83c4225">
+<h3 id="org83c4225"><code>class HasDecls</code></h3>
 <div class="org-src-container">
 
 <pre><code class="haskell" >class (Data t) =&gt; HasDecls t where
@@ -991,8 +1086,8 @@ foo = x &#x2013; comment1
 </aside>
 
 </section>
-<section id="slide-orgb5be04b">
-<h4 id="orgb5be04b"><code>replaceDecls</code></h4>
+<section id="slide-org0bd2465">
+<h4 id="org0bd2465"><code>replaceDecls</code></h4>
 <div class="org-src-container">
 
 <pre><code class="haskell" >-- |This is a function
@@ -1016,8 +1111,8 @@ foo = x -- comment1
 </div>
 
 </section>
-<section id="slide-org93d1c38">
-<h4 id="org93d1c38">code for the replace</h4>
+<section id="slide-orgfd53b9e">
+<h4 id="orgfd53b9e">code for the replace</h4>
 <div class="org-src-container">
 
 <pre><code class="haskell" >addLocaLDecl1 :: Changer
@@ -1034,8 +1129,8 @@ addLocaLDecl1 libdir top = do
 </div>
 
 </section>
-<section id="slide-org6faa91a">
-<h4 id="org6faa91a"><code>modifyValD</code></h4>
+<section id="slide-orge40b1dd">
+<h4 id="orge40b1dd"><code>modifyValD</code></h4>
 <ul>
 <li>Remember <code>FunBind</code>?</li>
 
@@ -1078,19 +1173,19 @@ needed.
 </aside>
 
 </section>
-<section id="slide-org3f4b12b">
-<h4 id="org3f4b12b">packFunBind, unpackFunBind</h4>
+<section id="slide-org609fee4">
+<h4 id="org609fee4">packFunBind, unpackFunBind</h4>
 <p>
 And packFunDecl, unpackFunDecl
 </p>
 
 </section>
-<section id="slide-org698afc2">
-<h4 id="org698afc2">addToList etc</h4>
+<section id="slide-org3992015">
+<h4 id="org3992015">addToList etc</h4>
 
 </section>
-<section id="slide-org27c1133">
-<h4 id="org27c1133">replaceDecls sort order</h4>
+<section id="slide-org2984352">
+<h4 id="org2984352">replaceDecls sort order</h4>
 <ul>
 <li>Remember <code>AnnSortKey</code>?</li>
 <li>It is populated in <code>replaceDecls</code></li>
@@ -1120,8 +1215,8 @@ When <code>AnnSortKey DeclTag</code>
 </section>
 </section>
 <section>
-<section id="slide-org6a1ed6c">
-<h3 id="org6a1ed6c">Summary</h3>
+<section id="slide-org39771c5">
+<h3 id="org39771c5">Summary</h3>
 <ul>
 <li>balance comments</li>
 <li>manage funbind comment details</li>
@@ -1134,8 +1229,8 @@ When <code>AnnSortKey DeclTag</code>
 </section>
 </section>
 <section>
-<section id="slide-org5b900ed">
-<h3 id="org5b900ed">ghc-exactprint print</h3>
+<section id="slide-org90d73b3">
+<h3 id="org90d73b3">ghc-exactprint print</h3>
 <p>
 This is the heart of the thing
 </p>
@@ -1157,8 +1252,8 @@ Suffice to say,
 </section>
 </section>
 <section>
-<section id="slide-orge2b446a">
-<h3 id="orge2b446a">Name tie-ups</h3>
+<section id="slide-org30eb239">
+<h3 id="org30eb239">Name tie-ups</h3>
 <ul>
 <li>All <code>RdrName</code> s in the AST are <code>LocatedN</code>, containing
 a <code>SrcSpan</code> when originally parsed.</li>
@@ -1180,8 +1275,8 @@ building a map of
 </section>
 </section>
 <section>
-<section id="slide-org7919649">
-<h2 id="org7919649">Future</h2>
+<section id="slide-orgcc1ab3d">
+<h2 id="orgcc1ab3d">Future</h2>
 <ul>
 <li>Fixity info</li>
 <li><code>GHC_CPP</code></li>
@@ -1201,8 +1296,8 @@ building a map of
 </section>
 </section>
 <section>
-<section id="slide-org554edfd">
-<h2 id="org554edfd">End</h2>
+<section id="slide-org70c255b">
+<h2 id="org70c255b">End</h2>
 </section>
 </section>
 </div>
@@ -1211,6 +1306,7 @@ building a map of
 <script src="./reveal.js/plugin/markdown/markdown.js"></script>
 <script src="./reveal.js/plugin/notes/notes.js"></script>
 <script src="./reveal.js/plugin/highlight/highlight.js"></script>
+<script src="./reveal.js/plugin/zoom/zoom.js"></script>
 <script>
 // Full list of configuration options available here:
 // https://github.com/hakimel/reveal.js#configuration
@@ -1233,7 +1329,7 @@ transition: 'linear',
 transitionSpeed: 'default',
 
 // Plugins with reveal.js 4.x
-plugins: [ RevealMarkdown, RevealNotes, RevealHighlight ],
+plugins: [ RevealMarkdown, RevealNotes, RevealHighlight, RevealZoom ],
 
 // Optional libraries used to extend reveal.js
 dependencies: [
