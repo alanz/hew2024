@@ -285,29 +285,12 @@ data DeltaPos
 - And may have adjusted the spacing with explicit deltas.
 
 ** Order in lists 3
-
-Example binds
-
-#+begin_src haskell
-where
-  fa :: Int
-  fa = 1
-
-  fb :: Char
-  fb = 'c'
-#+end_src
-
-This gives us ~ValBinds~ having
-
-#+begin_src haskell
-binds: fa = 1 , fb = 'c'
-sigs:  fa :: Int, fb :: Char
-tags: SigTag, BindTag, SigTag, BindTag
-#+end_src
-
-so we draw first from the signatures, then the binds, and same again.
+[[./images-work/ordering-smaller.png]]
+#+ATTR_REVEAL: :frag t
+[[./images-work/ordering-sortkey-smaller.png]]
 
 #+begin_notes
+so we draw first from the signatures, then the binds, and same again.
 - Each specific list is physically ordered, so for ~ValBinds~ we know
   the order of the sigs, and of the binds.
 - But we don’t know the interleaving.
