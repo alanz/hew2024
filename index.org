@@ -58,7 +58,7 @@ ZuriHac, 2024-06-07
 - And into GHC to make it useful for this
 
 * This Talk
-- Overview of the problem being solved
+- What is the problem being solved
 - What it means inside GHC
 - What it means outside GHC
 
@@ -76,7 +76,7 @@ To allow a tool to
 - make changes to it,
 - print source reflecting the changes.
 #+ATTR_REVEAL: :frag t
-- And only the changes.
+  - And only the changes.
 
 ** Start from GHC ParsedSource
 - It must accurately reflect the input source
@@ -85,7 +85,12 @@ To allow a tool to
     - Spacing
 
 #+begin_notes
-Trivia: things like keywords, commas, semicolons, brackets of all kinds
+- Unless care is taken, information vital to being able to reproduce
+  the source will be lost.
+- Broadly, Literals, Trivia, which is things like keywords, commas,
+  semicolons, brackets of all kinds
+- And of course Spacing.
+- Let look at each of these in turn
 #+end_notes
 
 ** Literals
@@ -100,6 +105,14 @@ Trivia: things like keywords, commas, semicolons, brackets of all kinds
 {-# LANGUAGE CPP #-}
 #+end_src
 
+#+begin_notes
+- Take parsing a simple integer constant, value 1.
+  <NEXT>
+  - These are all ways it can be written.
+- Or a pragma. <NEXT>
+- So we have to keep the as-written text for all of these.
+#+end_notes
+
 ** Trivia
 
 #+begin_src haskell
@@ -110,15 +123,16 @@ in fa
 #+end_src
 
 #+begin_notes
-Trivia is `let`, `::`, `in`
+- Here is a fragment of code for a let expression.
+- Trivia is `let`, `::`, `in`
 #+end_notes
 
 ** Spacing
 
 #+begin_notes
 - Spacing is a funny thing.
-- To start with, it is just a given. This is where things are in the
-  source, all wrapped in a SrcSpan
+- To simply reproduce the original code, we use the SrcSpan locations,
+  no problem.
 - But when you want to change things it gets complicated
   - Add or delete lines
   - Move a block of code from one place to another
@@ -127,12 +141,19 @@ Trivia is `let`, `::`, `in`
 
 ** Principle for Spacing
 A located AST element is treated as a self-contained unit
-#+ATTR_REVEAL: :frag (appear appear appear)
-- We believe its span start point
-- We believe its span end point
-- Nothing is printed outside its span
+#+ATTR_REVEAL: :frag (appear appear)
+- Looking in
+  - Everything we need to print it is inside
+  - Nothing is printed outside its span
+- Looking out
+  - We believe its span start point
+  - We believe its span end point
 
 #+begin_notes
+- We apply this principle to be able to change and print
+  (meaningfully) an ast.
+- Self-contained: when we are inside the fragment, we have everything
+  we need to be able to print it.
 - Self-contained: we can print it based only on what is inside
 - If we apply a constant (line,col) offset to the whole thing, it will
   still print properly
@@ -158,21 +179,40 @@ So
 
 ** Spacing example
 [[./images-work/let-in-boxes-raw.png]]
+#+begin_notes
+Here is our let expression again
+#+end_notes
 
 ** Spacing example: top box
 [[./images-work/let-in-boxes-top.png]]
 
+#+begin_notes
+At the top level, it is wrapped in a SrcSpan, setting its start and end position
+#+end_notes
 ** Spacing example: interior boxes
 [[./images-work/let-in-boxes-middle.png]]
-
+#+begin_notes
+- If we go into the box, we find 4 more
+- Two are trivia, two are more boxes we can go into
+#+end_notes
 ** Spacing example: spacing
 [[./images-work/let-in-boxes-spacing.png]]
-
+#+begin_notes
+We use distance from the end of one span to the start of the next to
+work out how much space to emit when printing
+#+end_notes
 ** Spacing : the missing piece
-There is one remaining problem
+#+ATTR_REVEAL: :frag (appear appear)
 - How do we change things?
-  - If we delete, there will be a gap
+- Deltas : Directly provide the spacing
+
+ #+begin_notes
+There is one remaining problem
+<NEXT>
+- How do we change things?
+  - If we delete a piece, there will be a gap
   - If we add something, there will be some kind of jump
+  <NEXT>
 - Deltas
   - At the point where we change from one self contained point
     to a changed one, we supply the delta directly
@@ -181,21 +221,28 @@ There is one remaining problem
     actual span we see
   - We believe the start position in a span
   - It will come after a delta, so the spacing is known
+ #+end_notes
 
 ** Spacing size changes example
 [[./images-work/let-in-longer-boxes-raw.png]]
+#+begin_notes
+- Say we want to rename `fa` to `falonger`, and just update the
+  literal text in the AST
+  - (for each appropriate `HsVar`)
+- But we make no other changes
+#+end_notes
 
 ** Spacing size changes example: spacing
 [[./images-work/let-in-longer-boxes-spacing.png]]
-
-** Spacing : size changes
-
-- A typical change is to rename a variable.
-- The name may be longer or shorter.
-- The spacing calculation to the start point is unchanged, so all is good
+#+begin_notes
+- It's hard to draw this, but imagine the blue boxes are the same ones
+  from before, not changed for the longer insides
+- The spacing calculation to the start point is unchanged, so all is
+  good
 - When we finish, we set the offset calculation position to the end of the span
   (We believe the end position)
 - And so following spacing calculations are unaffected.
+#+end_notes
 
 ** Spacing : size changes 2
 
@@ -205,9 +252,7 @@ There is one remaining problem
   entry spacing
 - And the end of the span for exit spacing
 
-** Spacing : layout
-
-Haskell is a layout-sensitive language
+** Spacing : deltas
 
 #+ATTR_REVEAL: :code_attribs data-line-numbers
 #+begin_src haskell
@@ -216,10 +261,14 @@ data DeltaPos
   | DifferentLine { deltaLine :: Int, deltaColumn :: Int }
 #+end_src
 
-Our offset position also tracks the current indentation level, so the
-~deltaColumn~ is added to that.
+#+begin_notes
+- The red arrows above map onto a `DeltaPos`, which can have line/col
+- Haskell is a layout-sensitive language
+- Our offset position also tracks the current indentation level, so
+  the ~deltaColumn~ is added to that.
+#+end_notes
 
-** Order in lists
+** Ordering things
 
 - ~ParsedSource~ is not a completely accurate reflection of the original source.
 - ~ValBinds~ separates out ~[Sig]~  and ~[Bind]~
@@ -227,7 +276,7 @@ Our offset position also tracks the current indentation level, so the
   ~Sig~ s, Type family instances etc
 - For all of these, the original source can have them in any order.
 
-** Order in lists 2
+** Ordering things 2
 
 - For an unmodified AST there is no problem, you just sort by start of
   span.
@@ -235,42 +284,37 @@ Our offset position also tracks the current indentation level, so the
   in ones from elsewhere.
 - And may have adjusted the spacing with explicit deltas.
 
-** Order in lists 3 : Solution
+** Order in lists 3
 
+Example binds
+
+#+begin_src haskell
+where
+  fa :: Int
+  fa = 1
+
+  fb :: Char
+  fb = 'c'
+#+end_src
+
+This gives us ~ValBinds~ having
+
+#+begin_src haskell
+binds: fa = 1 , fb = 'c'
+sigs:  fa :: Int, fb :: Char
+tags: SigTag, BindTag, SigTag, BindTag
+#+end_src
+
+so we draw first from the signatures, then the binds, and same again.
+
+#+begin_notes
 - Each specific list is physically ordered, so for ~ValBinds~ we know
   the order of the sigs, and of the binds.
 - But we don’t know the interleaving.
 - We supply this in an ~AnnSortKey~, which drives a merge process.
 - It keeps a list of ~SigDTag~ or ~BindTag~ for
   a ~ValBind~, telling which list to draw from each time.
-
-
-** Order in lists, Annotation.hs comment
-
-- From ~Note [AnnSortKey]~
-
-We use it as a merge selector, and have one entry for each bind and
-signature.
-
-Example binds
-
-   #+begin_src haskell
-   fa :: Int
-   fa = 1
-
-   fb :: Char
-   fb = 'c'
-   #+end_src
-
-This gives us ~ValBinds~ having
-
-  #+begin_src haskell
-  binds: fa = 1 , fb = 'c'
-  sigs:  fa :: Int, fb :: Char
-  tags: SigTag, BindTag, SigTag, BindTag
-  #+end_src
-
-so we draw first from the signatures, then the binds, and same again.
+#+end_notes
 
 
 ** Comments
@@ -283,6 +327,11 @@ so we draw first from the signatures, then the binds, and same again.
 - It’s more complicated than that, but we will look into detail later.
 
 ** Trailing Items
+[[./images-work/do-trailing-boxes.png]]
+
+#+begin_notes
+- The ast can be seen as an assembly of nested, ordered, self-contained boxes.
+- To keep them reusable, we leave trailing items in the upper level.
 - The self-contained belief we base everything on is that everything fits
   inside the AST Element span.
 - This is true for everything, except trailing items.
@@ -291,6 +340,7 @@ so we draw first from the signatures, then the binds, and same again.
 - So if you move the item elsewhere, or replace it with something
   else, the trailing comma should be managed as part of that location.
 - Others are semicolons, vertical bars, single and double arrows
+#+end_notes
 
 ** End of Hand Wavy Part
 
@@ -769,6 +819,10 @@ exactPrint :: ExactPrint ast => ast -> String
 - ghc-exactprint API
   - currently provisional
   - should it be split?
+    - parsing
+    - printing
+    - low-level API
+    rest outside
   - where should it live?
 - Link-up with ghc-lib-parser
 
