@@ -124,7 +124,7 @@ in fa
 
 #+begin_notes
 - Here is a fragment of code for a let expression.
-- Trivia is `let`, `::`, `in`
+- Trivia is `let`, `::`, `=`, `in`
 #+end_notes
 
 ** Spacing
@@ -137,6 +137,7 @@ in fa
   - Add or delete lines
   - Move a block of code from one place to another
     - Which can also change its indentation
+ <NEXT>
 #+end_notes
 
 ** Principle for Spacing
@@ -150,17 +151,15 @@ A located AST element is treated as a self-contained unit
   - We believe its span end point
 
 #+begin_notes
+- The exact print annotations embody a principle for spacing
 - We apply this principle to be able to change and print
   (meaningfully) an ast.
-- Self-contained: when we are inside the fragment, we have everything
-  we need to be able to print it.
-- Self-contained: we can print it based only on what is inside
-- If we apply a constant (line,col) offset to the whole thing, it will
-  still print properly
-- Implication
-  - If we do some book-keeping about the start offset, we can print it
-    anywhere
-- What happens in the box, stays in the box
+  <NEXT>
+- when we are inside the fragment, we have everything we need to be
+  able to print it.
+- we can print it based only on what is inside
+  <NEXT>
+- Looking out belief: we will clarify what this means in subsequent slides
 #+end_notes
 
 ** Spacing : printing
@@ -198,8 +197,10 @@ At the top level, it is wrapped in a SrcSpan, setting its start and end position
 ** Spacing example: spacing
 [[./images-work/let-in-boxes-spacing.png]]
 #+begin_notes
-We use distance from the end of one span to the start of the next to
+- We use distance from the end of one span to the start of the next to
 work out how much space to emit when printing
+- And we believe the start and end span locations for these
+  calculations.
 #+end_notes
 ** Spacing : the missing piece
 #+ATTR_REVEAL: :frag (appear appear)
@@ -341,7 +342,7 @@ Time to dive into the detail. Two main divisions
 #+end_notes
 
 ** Terminology
-- AST: ~ParsedSource~
+- AST means ~ParsedSource~
 
 #+begin_src haskell
 type ParsedSource = Located (HsModule GhcPs)
@@ -352,7 +353,14 @@ parsing phase.
 
 ** Located Things
 
-The AST is layered, as we saw in the boxes diagrams earlier.
+#+begin_notes
+- The AST is layered, as we saw in the boxes diagrams earlier.
+- The types around location are a bit complex, being driven mainly by
+  type families.
+- My mental model is they are functions from a type to a type.
+- Lets start with the first one
+  <NEXT>
+#+end_notes
 
 *** Location
 
@@ -372,14 +380,29 @@ type instance XRec (GhcPass p) a = GenLocated (Anno a) a
 
 #+ATTR_REVEAL: :frag t
 #+begin_src haskell
+type LHsExpr p = XRec p (HsExpr p)
 type instance Anno (HsExpr (GhcPass p)) = SrcSpanAnnA
-type LocatedA = GenLocated SrcSpanAnnA
 #+end_src
 
 #+ATTR_REVEAL: :frag t
 #+begin_src haskell
 type SrcSpanAnnA = EpAnn AnnListItem
 #+end_src
+
+#+begin_notes
+- XRec has a parameter p, and maps a type 'a' to a type 'r', and fundeps say the reverse holds too.
+- `p` is a parameter that is chased through the entire AST, and for `ParsedSource` is always `GhcPs`
+  <NEXT>
+- Anno is a type function from `a` to `b`
+  <NEXT>
+- We create an instance (= mapping) of XRec for all GhcPass types as being located by Anno a
+- Lets make this concrete
+  <NEXT>
+- LHsExpr is defined as an XRec type
+- And it's Anno instance is SrcSpanAnnA
+  <NEXT>
+- which in turn is this EpAnn AnnListItem
+#+end_notes
 
 *** EpAnn
 
@@ -399,6 +422,22 @@ data EpaLocation' a = EpaSpan !SrcSpan
                     | EpaDelta !DeltaPos !a
 #+end_src
 
+#+begin_notes
+- EpAnn is an augmented SrcSpan
+- the `entry` field is basically a SrcSpan when parsed
+- `ann` is the parameterised type, `AnnListItem` in our example
+- `comments` captures any comments included in the immediate
+  descendents of the thing being located by this. between the sub
+  boxes in the first section.
+  <NEXT>
+- As I said, the as-parsed EpaLocation is EpaSpan, holding a SrcSpan
+- EpaDelta is used for editing and reprinting, we will deal with it in
+  the next section.
+- You will notice a delta also has comments. This is because we can't
+  sort anything, with deltas, so for trivia having preceding comments
+  we put them here.
+#+end_notes
+
 *** ~AnnListItem~
 
 #+begin_src haskell
@@ -409,6 +448,12 @@ data AnnListItem
       lann_trailing  :: [TrailingAnn]
       }
 #+end_src
+
+#+begin_notes
+- A trailingann is an enumeration of a kind of trailing item and its EpaLocation
+  - So semicolon, comma, arrow, darrow, and vertical bar
+- we saw them in the previous section, a semicolon
+#+end_notes
 
 *** Sanity check
 
@@ -424,29 +469,35 @@ Tie up to prior hand wavy part
       ...
    #+end_example
 
-- ~SrcSpan~ we "believe" is the one in the ~EpAnn~ ~entry~, using the
-  ~EpaSpan~ constructor.
-- If we need to move things around, the surgery happens by replacing
-  it with an appropriate ~EpaDelta~ version, just for the
-  point where the change happens.
 
 #+begin_notes
 - After this deep dive into types, let's come up for air a bit.
 - If you recall in the handwavy part we spoke about span being the
   source of truth, the thing we believe.
+- ~SrcSpan~ we "believe" is the one in the ~EpAnn~ ~entry~, using the
+  ~EpaSpan~ constructor.
+- If we need to move things around, the surgery happens by replacing
+  it with an appropriate ~EpaDelta~ version, just for the
+  point where the change happens.
 - For ghc-exactprint old hands, makeDeltaAst is no longer required (but still exists)
+- Now back to the next kind, storage of internal annotations
 #+end_notes
 
 ** Internal Annotations
 
-- everything that is not a location, comment, or surrounding
-  information, but is needed for exact printing.
   - ~SourceText~ for Literals,
   - keywords (via ~AnnKeywordId~ or ~EpToken~)
 
+ #+begin_notes
+- everything that is not a location, comment, or surrounding
+  information, but is needed for exact printing.
+ SourceText keeps the as-written source text of a literal, so it can be used when printing.
+- keywords or trivia are all the other punctuation marks.
+  - When not in a trailing usage.
+ #+end_notes
+
 *** ~AnnKeywordId~
 
-Original mechanism
 #+begin_src haskell
 data AnnKeywordId
     ...
@@ -455,9 +506,13 @@ data AnnKeywordId
 data AddEpAnn = AddEpAnn AnnKeywordId EpaLocation
 #+end_src
 
+#+begin_notes
+- This is the original mechanism for capturing trivia.
+- It is an enumeration of what it is, together with its location.
+#+end_notes
+
 *** ~EpToken~
 
-New mechanism. May eventually supplant ~AnnKeywordId~
 
 #+begin_src haskell
 data EpToken (tok :: Symbol)
@@ -467,10 +522,6 @@ data EpToken (tok :: Symbol)
 
 Used as a type ~EpTok "let"~
 
-#+begin_notes
-Apart from ~NoEpTok~, this is isomorphic to ~AddEpAnn~
-#+end_notes
-
 #+ATTR_REVEAL: :frag t
 #+begin_src haskell
 -- Extract string for printing
@@ -479,12 +530,23 @@ getEpTokenString NoEpTok = Nothing
 getEpTokenString (EpTok _) = Just $ symbolVal (Proxy @tok)
 #+end_src
 
+#+begin_notes
+- This is the new mechanism. May eventually supplant AddEpAnn and AnnKeywordId
+- Apart from ~NoEpTok~, this is isomorphic to ~AddEpAnn~
+  <NEXT>
+- And this shows you how to get the "let" back out for the example
+#+end_notes
+
 *** Internal Annotation storage
+#+begin_notes
+Back into type function land, as we look into how these keywords are
+stored in an AST element.
+#+end_notes
 
 *** Trees That Grow
 - GHC AST implements “Trees That Grow”
 - This means extra information can be carried, computed via type classes
-- "Extension points"
+- We call them "Extension points"
 
 *** Refresher
 #+begin_src haskell
@@ -500,6 +562,28 @@ type instance XLet GhcPs = (EpToken "let", EpToken "in")
 #+end_src
 #+ATTR_REVEAL: :frag t
 [[./images-work/let-in-boxes-middle-smaller.png]]
+#+begin_notes
+- Every constructor in the GHC AST has a first field named something
+  like XLet for HsLet constructor
+- It is parameterised by the global AST parameter p
+- And there is a type family for it, so instances can be defined to
+  map it onto a concrete type.
+  <NEXT>
+- For XLet and GhcPs this is a tuple for a let and an in token
+  <NEXT>
+- Going back to our example, these capture the locations in violet
+#+end_notes
+
+** Recap
+
+#+begin_notes
+This section has scratched the surface. There is a lot more I have not covered, e.g.
+- ~LocatedN RdrName~
+- Annotations around lists, context, pragmas and so on
+- But we will now look at how we use it for its intended purpose,
+  tools to change and emit updated source.
+- Recall my original motivation was the haskell refactorer
+#+end_notes
 
 * What it means outside GHC
 - The Exact Print Annotations are packaged for use in [[https://hackage.haskell.org/package/ghc-exactprint][ghc-exactprint]]
@@ -514,17 +598,61 @@ type instance XLet GhcPs = (EpToken "let", EpToken "in")
 - Transform
 - Print
 
+#+begin_notes
+- The usual thing. input, process, output.
+- Lets look at each in turn
+#+end_notes
+
 ** ghc-exactprint parsing
-- ~parseModule~
+
+#+begin_src haskell
+type Parser a = GHC.DynFlags -> FilePath -> String -> ParseResult a
+#+end_src
+
+#+ATTR_REVEAL: :frag t
+#+begin_src haskell
+parseExpr :: Parser (GHC.LHsExpr GHC.GhcPs)
+parseImport :: Parser (GHC.LImportDecl GHC.GhcPs)
+parseType :: Parser (GHC.LHsType GHC.GhcPs)
+parseDecl :: Parser (GHC.LHsDecl GHC.GhcPs)
+parseStmt :: Parser (GHC.ExprLStmt GHC.GhcPs)
+parsePattern :: Parser (GHC.LPat GHC.GhcPs)
+#+end_src
+
+#+begin_notes
+- a pure function
+   - FilePath is used just for SrcSpan construction
+   - String is the source
+ <NEXT>
+- We have ones for various subcomponents
+- They are an option for constructing fragments to be inserted into an
+  existing AST somewhere
+#+end_notes
+
+** ghc-exactprint parseModule
+
+#+begin_src haskell
+parseModule :: LibDir -> FilePath -> IO (ParseResult GHC.ParsedSource)
+#+end_src
+
+#+begin_notes
+- This is the main one used when actually changing a module
 - "best effort" with CPP
-  - compares original with preprocessed, and turns the delta into
+  - compares original with preprocessed, and turns the diff into
     comments
   - cannot work if =#define XX Blah= and then =XX= is used. =XX= added as a comment, as well as =Blah=
 - Honours pragmas, but you need to set ~DynFlags~ for any e.g. project-wide options
+#+end_notes
 
 ** ghc-exactprint transform
 - The reason ~ghc-exactprint~ exists
+#+begin_notes
+- And the exact print annotations in GHC
 - Intention: smallest changes possible
+- So makeDeltaAst is no longer needed, and makes it impossible to map
+  locations back to the AST to be changed.
+- But lets first go off at a tangent
+#+end_notes
 
 *** Comments
 
@@ -538,15 +666,16 @@ data EpAnnComments = EpaComments
                         , followingComments :: ![LEpaComment] }
 #+end_src
 
-Once you decide to move thing around, you need to decide which
-comments to bring along.
+#+begin_notes
+- The initial parsing is optimised for speed, you are not necessarily
+  going to change things
+- Once you decide to move thing around, you need to decide which
+  comments to bring along.
+- The comments constructors initially carry priorComments only, which
+  precede the given declarations.
+#+end_notes
 
 *** ~balanceComments~
-
-~ghc-exactprint~ has ~balanceComments~ and ~balanceCommentsList~
-
-These use heuristics to "attach" comments to the appropriate top level
-declaration.
 
 #+begin_src haskell
 -- a random comment
@@ -562,6 +691,12 @@ foo = 3
 bar = 2
 #+end_src
 
+#+begin_notes
+- ~ghc-exactprint~ has ~balanceComments~ and ~balanceCommentsList~
+- These use heuristics to "attach" comments to the appropriate
+  declaration in a list
+- Here is some example source.  When we balance comments
+#+end_notes
 
 *** becomes
 
@@ -582,11 +717,19 @@ foo = 3
 bar = 2
 #+end_src
 
+#+begin_notes
+- The first comment is attached to the module header. Or to the first
+  declaration if it is a lower level list
+- The next two become prior and following comments for foo.
+- following comments are kept if they immediately follow a declaration.
+- And the last two become prior comments for bar.
+- This makes a given list of declarations ready for modification.
+  - You can take one and move it somewhere else, or insert a new one
+    in between, and hopefully the comments will still make sense.
+#+end_notes
+
 *** ~FunBind~ comments
 
-- ~FunBind~ is weird
-- it combines all the equations for a particular function
-- each shows up as a ~Match~, which is self-contained
 
 #+begin_src haskell
 -- a random comment
@@ -602,6 +745,12 @@ foo True = 3
 foo False = 2
 -- trailing second fun
 #+end_src
+
+#+begin_notes
+- ~FunBind~ is weird
+- it combines all the equations for a particular function
+- each shows up as a ~Match~, which is self-contained
+#+end_notes
 
 *** becomes
 
@@ -809,4 +958,16 @@ exactPrint :: ExactPrint ast => ast -> String
   - where should it live?
 - Link-up with ghc-lib-parser
 
+* GHC 9.10
+- Sorry for the breakage
+- Porting/changes at [[https://gist.github.com/alanz/e127e7561ddf1cfeb07fbdee9a966794][Exact Print Annotations GHC 9.10 changes]]
+- TLDR
+  - remove ~makeDeltaAst~, otherwise there will be no ~SrcSpan~
+    anywhere in the AST (but when ready to make a change, using it to
+    capture spacing of the local thing being edited may help)
+  - ~EpAnnNotUsed~ is gone, use ~noAnn~ instead
+  - ~uniqueSrcSpanT~ is no longer needed, use an appropriate
+    ~EpaDelta~ location instead
+  - ~EpaDelta (DifferentLine row col)~ interprets ~col~ differently.
+    You must add 1 to get the prior spacing.
 * End
