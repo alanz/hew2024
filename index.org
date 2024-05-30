@@ -667,6 +667,7 @@ data EpAnnComments = EpaComments
 #+end_src
 
 #+begin_notes
+- EpAnn is the "super SrcSpan" we use for locations
 - The initial parsing is optimised for speed, you are not necessarily
   going to change things
 - Once you decide to move thing around, you need to decide which
@@ -730,7 +731,6 @@ bar = 2
 
 *** ~FunBind~ comments
 
-
 #+begin_src haskell
 -- a random comment
 
@@ -783,17 +783,29 @@ On FunBind following comments
 -- trailing second fun
 #+end_src
 
+#+begin_notes
+- The first comment is as before
+- Rest are as per the comments
+#+end_notes
+
 *** Produced by
 
 #+begin_src haskell
 test = TestList [mkTestModChange libdir balanceComments "AFile.hs"]
 
-balanceComments :: Changer
+balanceComments :: LibDir -> (ParsedSource -> IO ParsedSource)
 balanceComments _libdir lp = return $ replaceDecls lp ds'
   where
     ds = hsDecls lp
     ds' = balanceCommentsList ds
 #+end_src
+
+#+begin_notes
+- This is a function that changes a GHC ParsedSource
+- It gets a LibDir in case we want to parse a new fragment for insertion
+- You will notice that in addition to balanceCommentsList, it uses
+  - hsDecls and replaceDecls
+#+end_notes
 
 ** ~class HasDecls~
 
@@ -804,31 +816,15 @@ class (Data t) => HasDecls t where
 #+end_src
 
 #+begin_notes
-    - hasDecls
-      - Return the 'HsDecl's that are directly enclosed in the
-      given syntax phrase. They are always returned in the wrapped
-      'HsDecl' form, even if orginating in local decls. This is safe,
-      as annotations never attach to the wrapper, only to the wrapped
-      item.
-    - replaceDecls
-      -
-     Replace the directly enclosed decl list by the given
-     decl list. As parto of replacing it will update list order
-     annotations, and rebalance comments and other layout changes as needed.
-    --
-    For example, a call on replaceDecls for a wrapped 'FunBind' having no
-    where clause will convert
-    --
-    @
-    -- |This is a function
-    foo = x -- comment1
-    --
-    in to
-    --
-    -- |This is a function
-    foo = x -- comment1
-      where
-        nn = 2
+- hasDecls
+  - Return the 'HsDecl's that are directly enclosed in the given
+    syntax phrase. They are always returned in the wrapped 'HsDecl'
+    form, even if orginating in local decls. This is safe, as
+    annotations never attach to the wrapper, only to the wrapped item.
+- replaceDecls
+  - Replace the directly enclosed decl list by the given decl list. As
+    parto of replacing it will update list order annotations, and
+    rebalance comments and other layout changes as needed.
 #+end_notes
 
 *** ~replaceDecls~
@@ -883,53 +879,78 @@ modifyValD
    -> (Decl, Maybe t)
 #+end_src
 
-
 #+begin_notes
--- |Modify a 'LHsBind' wrapped in a 'ValD'. For a 'PatBind' the
--- declarations are extracted and returned after modification. For a
--- 'FunBind' the supplied 'SrcSpan' is used to identify the specific
--- 'Match' to be transformed, for when there are multiple of them.
-
-Note: now that everything is pure, and connected, pretty much not
-needed.
+- Modify a 'LHsBind' wrapped in a 'ValD'.
+- For a 'FunBind' the supplied 'SrcSpan' is used to identify the
+  specific 'Match' to be transformed, for when there are multiple of
+  them.
+- It is a bit janky, no need to return Maybe t, user can wrap it in
+  state.
+- It takes the FunBind, as a Decl.
+- A function taking a Match and a list of its local binds (as Decls)
+- And returning updated local binds, and whatever
+- And it returns the updated FunBind as a decl
 #+end_notes
 
+*** There is a lot going on under the hood
+- unpack the funbind for comments
+- extract the local binds, sorted according to the AnnSortKey, as decls
+- Apply the function
+- When replacing, add or remove 'where' if it was empty or becomes empty
+- And update the AnnSortKey
+- pack the funbind for comments
+
 *** packFunBind, unpackFunBind
-And packFunDecl, unpackFunDecl
+- unpackFunBind
+- packFunBind
 
-*** addToList etc
+#+begin_notes
+- As I explained earlier, if we are working with a FunDecl in a list
+  of Decls, we need to be able to work with its leading and trailing
+  comments, for example to balance comments
+- But a FunBind is just a container for self-contained matches, and
+  those are the things we print
+- So unpackFunBind takes these ValD level prior and following comments
+  and pushes them down to the first and last match respectively
+- After changes are made to the matches, packFunBind does the reverse
+#+end_notes
 
-*** replaceDecls sort order
-- Remember ~AnnSortKey~?
-- It is populated in ~replaceDecls~
-- ~captureOrderBinds~
-- ~replaceDeclsClassDecl~ (and ~hsDeclsClassDecl~)
+*** insertAt and friends
 
-- ~oderedDecls~
-  When ~NoAnnSortKey~,
-  - Assume working with an unchanged AST
-  - use the locations of the decls and sort
-  When ~AnnSortKey DeclTag~
-  - Build ~Map.Map DeclTag [LHsDecl GhcPs]~ from assorted ~ClassDecl~ parts
-  - 
+#+begin_src haskell
+insertAtStart, insertAtEnd :: HasDecls ast => ast -> LHsDecl GhcPs -> ast
+#+end_src
 
-** Summary
-- balance comments
-- manage funbind comment details
-- manage ~where~ for adding/removing decls to ~HsValBinds~
-- track sort order
-- wrap/unwrap binds
+#+ATTR_REVEAL: :frag t
+#+begin_src haskell
+insertAfter, insertBefore :: HasDecls (LocatedA ast)
+                          => LocatedA old
+                          -> LocatedA ast
+                          -> LHsDecl GhcPs
+                          -> LocatedA ast
+#+end_src
+
+#+begin_notes
+- There is another set of utilities, put in by Matt Pickering for the
+  hlint apply refact integration
+- Insert a declaration at the beginning or end of the subdecls of the
+  given AST item having sub-declarations
+ <NEXT>
+- Insert a declaration at a specific location in the subdecls of the
+  given AST item having sub-declarations
+#+end_notes
 
 ** ghc-exactprint print
-This is the heart of the thing
-
-But will not look in detail, it is too complex
-
-Suffice to say,
 
 #+begin_src haskell
 exactPrint :: ExactPrint ast => ast -> String
 #+end_src
+
+#+begin_notes
+- This is the heart of the thing
+- But will not look in detail, it is too complex
+- I will be around, can take anyone interested over it
+#+end_notes
 
 ** Name tie-ups
 - All ~RdrName~ s in the AST are ~LocatedN~, containing
@@ -941,7 +962,6 @@ exactPrint :: ExactPrint ast => ast -> String
  #+begin_src haskell
  SrcSpan -> Name
  #+end_src
-
 
 * Future
 - Fixity info
@@ -970,4 +990,9 @@ exactPrint :: ExactPrint ast => ast -> String
     ~EpaDelta~ location instead
   - ~EpaDelta (DifferentLine row col)~ interprets ~col~ differently.
     You must add 1 to get the prior spacing.
+
 * End
+
+- https://github.com/alanz/ghc-exactprint
+- [[https://gist.github.com/alanz/e127e7561ddf1cfeb07fbdee9a966794][Exact Print Annotations GHC 9.10 changes]]
+
