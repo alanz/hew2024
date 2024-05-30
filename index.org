@@ -17,10 +17,11 @@
 #+REVEAL_TRANS: linear
 # #+REVEAL_PLUGINS: (markdown notes )
 # #+REVEAL_PLUGINS: (markdown notes highlight toc-pogress)
-#+REVEAL_PLUGINS: (markdown notes highlight zoom)
+# #+REVEAL_PLUGINS: (markdown notes highlight zoom)
+#+REVEAL_PLUGINS: (markdown notes zoom)
 #+REVEAL_EXTRA_CSS: ./local.css
 #+REVEAL_EXTRA_CSS: ./reveal.js/plugin/toc-progress/toc-progress.css
-#+REVEAL_HIGHLIGHT_CSS: %r/plugin/highlight/github.css
+# #+REVEAL_HIGHLIGHT_CSS: %r/plugin/highlight/github.css
 #+PROPERTY: header-args    :results silent
 #+PROPERTY: header-args    :exports code
 
@@ -255,7 +256,6 @@ There is one remaining problem
 
 *** Spacing : deltas
 
-#+ATTR_REVEAL: :code_attribs data-line-numbers
 #+begin_src haskell
 data DeltaPos
   = SameLine { deltaColumn :: Int }
