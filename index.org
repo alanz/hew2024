@@ -140,7 +140,7 @@ in fa
  <NEXT>
 #+end_notes
 
-** Principle for Spacing
+*** Principle for Spacing
 A located AST element is treated as a self-contained unit
 #+ATTR_REVEAL: :frag (appear appear)
 - Looking in
@@ -162,7 +162,7 @@ A located AST element is treated as a self-contained unit
 - Looking out belief: we will clarify what this means in subsequent slides
 #+end_notes
 
-** Spacing : printing
+*** Spacing : printing
 - A self-contained AST element has absolute locations
 - When we print, we have a print head that we advance
 - By distances calculated from the absolute locations
@@ -176,25 +176,25 @@ So
   - Otherwise it also advances as we print
 #+end_notes
 
-** Spacing example
+*** Spacing example
 [[./images-work/let-in-boxes-raw.png]]
 #+begin_notes
 Here is our let expression again
 #+end_notes
 
-** Spacing example: top box
+*** Spacing example: top box
 [[./images-work/let-in-boxes-top.png]]
 
 #+begin_notes
 At the top level, it is wrapped in a SrcSpan, setting its start and end position
 #+end_notes
-** Spacing example: interior boxes
+*** Spacing example: interior boxes
 [[./images-work/let-in-boxes-middle.png]]
 #+begin_notes
 - If we go into the box, we find 4 more
 - Two are trivia, two are more boxes we can go into
 #+end_notes
-** Spacing example: spacing
+*** Spacing example: spacing
 [[./images-work/let-in-boxes-spacing.png]]
 #+begin_notes
 - We use distance from the end of one span to the start of the next to
@@ -202,7 +202,7 @@ work out how much space to emit when printing
 - And we believe the start and end span locations for these
   calculations.
 #+end_notes
-** Spacing : the missing piece
+*** Spacing : the missing piece
 #+ATTR_REVEAL: :frag (appear appear)
 - How do we change things?
 - Deltas : Directly provide the spacing
@@ -224,7 +224,7 @@ There is one remaining problem
   - It will come after a delta, so the spacing is known
  #+end_notes
 
-** Spacing size changes example
+*** Spacing size changes example
 [[./images-work/let-in-longer-boxes-raw.png]]
 #+begin_notes
 - Say we want to rename `fa` to `falonger`, and just update the
@@ -233,7 +233,7 @@ There is one remaining problem
 - But we make no other changes
 #+end_notes
 
-** Spacing size changes example: spacing
+*** Spacing size changes example: spacing
 [[./images-work/let-in-longer-boxes-spacing.png]]
 #+begin_notes
 - It's hard to draw this, but imagine the blue boxes are the same ones
@@ -245,7 +245,7 @@ There is one remaining problem
 - And so following spacing calculations are unaffected.
 #+end_notes
 
-** Spacing : size changes 2
+*** Spacing : size changes 2
 
 - The same principle holds for bigger changes.
 - If we add additional content inside a span, it does not matter,
@@ -253,7 +253,7 @@ There is one remaining problem
   entry spacing
 - And the end of the span for exit spacing
 
-** Spacing : deltas
+*** Spacing : deltas
 
 #+ATTR_REVEAL: :code_attribs data-line-numbers
 #+begin_src haskell
@@ -277,7 +277,7 @@ data DeltaPos
   ~Sig~ s, Type family instances etc
 - For all of these, the original source can have them in any order.
 
-** Ordering things 2
+*** Ordering things 2
 
 - For an unmodified AST there is no problem, you just sort by start of
   span.
@@ -285,7 +285,7 @@ data DeltaPos
   in ones from elsewhere.
 - And may have adjusted the spacing with explicit deltas.
 
-** Order in lists 3
+*** Order in lists 3
 [[./images-work/ordering-smaller.png]]
 #+ATTR_REVEAL: :frag t
 [[./images-work/ordering-sortkey-smaller.png]]
@@ -629,7 +629,7 @@ parsePattern :: Parser (GHC.LPat GHC.GhcPs)
   existing AST somewhere
 #+end_notes
 
-** ghc-exactprint parseModule
+*** ghc-exactprint parseModule
 
 #+begin_src haskell
 parseModule :: LibDir -> FilePath -> IO (ParseResult GHC.ParsedSource)
