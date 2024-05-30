@@ -73,7 +73,7 @@ ZuriHac, 2024-06-07
 
 * Problem Being Solved
 To allow a tool to
-- start from a ~GHC~ ~ParsedSource~,
+- start from a src_haskell{GHC ParsedSource},
 - make changes to it,
 - print source reflecting the changes.
 #+ATTR_REVEAL: :frag t
@@ -266,15 +266,15 @@ data DeltaPos
 - The red arrows above map onto a `DeltaPos`, which can have line/col
 - Haskell is a layout-sensitive language
 - Our offset position also tracks the current indentation level, so
-  the ~deltaColumn~ is added to that.
+  the src_haskell{deltaColumn} is added to that.
 #+end_notes
 
 ** Ordering things
 
-- ~ParsedSource~ is not a completely accurate reflection of the original source.
-- ~ValBinds~ separates out ~[Sig]~  and ~[Bind]~
-- ~ClassDecl~ and  ~ClsInstDecl~ separate out ~Bind~ s,
-  ~Sig~ s, Type family instances etc
+- src_haskell{ParsedSource} is not a completely accurate reflection of the original source.
+- src_haskell{ValBinds} separates out src_haskell{[Sig]}  and src_haskell{[Bind]}
+- src_haskell{ClassDecl} and src_haskell{ClsInstDecl} separate out src_haskell{Bind}s,
+  src_haskell{Sig}s, Type family instances etc
 - For all of these, the original source can have them in any order.
 
 *** Ordering things 2
@@ -292,12 +292,12 @@ data DeltaPos
 
 #+begin_notes
 so we draw first from the signatures, then the binds, and same again.
-- Each specific list is physically ordered, so for ~ValBinds~ we know
+- Each specific list is physically ordered, so for src_haskell{ValBinds} we know
   the order of the sigs, and of the binds.
 - But we don’t know the interleaving.
-- We supply this in an ~AnnSortKey~, which drives a merge process.
-- It keeps a list of ~SigDTag~ or ~BindTag~ for
-  a ~ValBind~, telling which list to draw from each time.
+- We supply this in an src_haskell{AnnSortKey}, which drives a merge process.
+- It keeps a list of src_haskell{SigDTag} or src_haskell{BindTag} for
+  a src_haskell{ValBind}, telling which list to draw from each time.
 #+end_notes
 
 
@@ -342,13 +342,13 @@ Time to dive into the detail. Two main divisions
 #+end_notes
 
 ** Terminology
-- AST means ~ParsedSource~
+- AST means src_haskell{ParsedSource}
 
 #+begin_src haskell
 type ParsedSource = Located (HsModule GhcPs)
 #+end_src
 
-For now we accept ~GhcPs~ as simply a marker of the AST from the
+For now we accept src_haskell{GhcPs} as simply a marker of the AST from the
 parsing phase.
 
 ** Located Things
@@ -438,7 +438,7 @@ data EpaLocation' a = EpaSpan !SrcSpan
   we put them here.
 #+end_notes
 
-*** ~AnnListItem~
+*** src_haskell{AnnListItem}
 
 #+begin_src haskell
 -- | Annotation for items appearing in a list. They can have one or
@@ -474,10 +474,10 @@ Tie up to prior hand wavy part
 - After this deep dive into types, let's come up for air a bit.
 - If you recall in the handwavy part we spoke about span being the
   source of truth, the thing we believe.
-- ~SrcSpan~ we "believe" is the one in the ~EpAnn~ ~entry~, using the
-  ~EpaSpan~ constructor.
+- src_haskell{SrcSpan} we "believe" is the one in the src_haskell{EpAnn entry}, using the
+  src_haskell{EpaSpan} constructor.
 - If we need to move things around, the surgery happens by replacing
-  it with an appropriate ~EpaDelta~ version, just for the
+  it with an appropriate src_haskell{EpaDelta} version, just for the
   point where the change happens.
 - For ghc-exactprint old hands, makeDeltaAst is no longer required (but still exists)
 - Now back to the next kind, storage of internal annotations
@@ -485,8 +485,8 @@ Tie up to prior hand wavy part
 
 ** Internal Annotations
 
-  - ~SourceText~ for Literals,
-  - keywords (via ~AnnKeywordId~ or ~EpToken~)
+  - src_haskell{SourceText} for Literals,
+  - keywords (via src_haskell{AnnKeywordId} or src_haskell{EpToken})
 
  #+begin_notes
 - everything that is not a location, comment, or surrounding
@@ -496,7 +496,7 @@ Tie up to prior hand wavy part
   - When not in a trailing usage.
  #+end_notes
 
-*** ~AnnKeywordId~
+*** src_haskell{AnnKeywordId}
 
 #+begin_src haskell
 data AnnKeywordId
@@ -511,7 +511,7 @@ data AddEpAnn = AddEpAnn AnnKeywordId EpaLocation
 - It is an enumeration of what it is, together with its location.
 #+end_notes
 
-*** ~EpToken~
+*** src_haskell{EpToken}
 
 
 #+begin_src haskell
@@ -520,7 +520,7 @@ data EpToken (tok :: Symbol)
   | EpTok !EpaLocation
 #+end_src
 
-Used as a type ~EpTok "let"~
+Used as a type src_haskell{EpTok "let"}
 
 #+ATTR_REVEAL: :frag t
 #+begin_src haskell
@@ -532,7 +532,7 @@ getEpTokenString (EpTok _) = Just $ symbolVal (Proxy @tok)
 
 #+begin_notes
 - This is the new mechanism. May eventually supplant AddEpAnn and AnnKeywordId
-- Apart from ~NoEpTok~, this is isomorphic to ~AddEpAnn~
+- Apart from src_haskell{NoEpTok}, this is isomorphic to src_haskell{AddEpAnn}
   <NEXT>
 - And this shows you how to get the "let" back out for the example
 #+end_notes
@@ -578,7 +578,7 @@ type instance XLet GhcPs = (EpToken "let", EpToken "in")
 
 #+begin_notes
 This section has scratched the surface. There is a lot more I have not covered, e.g.
-- ~LocatedN RdrName~
+- src_haskell{LocatedN RdrName}
 - Annotations around lists, context, pragmas and so on
 - But we will now look at how we use it for its intended purpose,
   tools to change and emit updated source.
@@ -641,11 +641,11 @@ parseModule :: LibDir -> FilePath -> IO (ParseResult GHC.ParsedSource)
   - compares original with preprocessed, and turns the diff into
     comments
   - cannot work if =#define XX Blah= and then =XX= is used. =XX= added as a comment, as well as =Blah=
-- Honours pragmas, but you need to set ~DynFlags~ for any e.g. project-wide options
+- Honours pragmas, but you need to set src_haskell{DynFlags} for any e.g. project-wide options
 #+end_notes
 
 ** ghc-exactprint transform
-- The reason ~ghc-exactprint~ exists
+- The reason src_haskell{ghc-exactprint} exists
 #+begin_notes
 - And the exact print annotations in GHC
 - Intention: smallest changes possible
@@ -656,7 +656,7 @@ parseModule :: LibDir -> FilePath -> IO (ParseResult GHC.ParsedSource)
 
 *** Comments
 
-Stored in ~EpAnn~
+Stored in src_haskell{EpAnn}
 
 #+begin_src haskell
 data EpAnnComments = EpaComments
@@ -676,7 +676,7 @@ data EpAnnComments = EpaComments
   precede the given declarations.
 #+end_notes
 
-*** ~balanceComments~
+*** src_haskell{balanceComments}
 
 #+begin_src haskell
 -- a random comment
@@ -693,7 +693,7 @@ bar = 2
 #+end_src
 
 #+begin_notes
-- ~ghc-exactprint~ has ~balanceComments~ and ~balanceCommentsList~
+- ~ghc-exactprint~ has src_haskell{balanceComments} and src_haskell{balanceCommentsList}
 - These use heuristics to "attach" comments to the appropriate
   declaration in a list
 - Here is some example source.  When we balance comments
@@ -729,7 +729,7 @@ bar = 2
     in between, and hopefully the comments will still make sense.
 #+end_notes
 
-*** ~FunBind~ comments
+*** src_haskell{FunBind} comments
 
 #+begin_src haskell
 -- a random comment
@@ -747,9 +747,9 @@ foo False = 2
 #+end_src
 
 #+begin_notes
-- ~FunBind~ is weird
+- src_haskell{FunBind} is weird
 - it combines all the equations for a particular function
-- each shows up as a ~Match~, which is self-contained
+- each shows up as a src_haskell{Match}, which is self-contained
 #+end_notes
 
 *** becomes
@@ -807,7 +807,7 @@ balanceComments _libdir lp = return $ replaceDecls lp ds'
   - hsDecls and replaceDecls
 #+end_notes
 
-** ~class HasDecls~
+** src_haskell{class HasDecls}
 
 #+begin_src haskell
 class (Data t) => HasDecls t where
@@ -827,7 +827,7 @@ class (Data t) => HasDecls t where
     rebalance comments and other layout changes as needed.
 #+end_notes
 
-*** ~replaceDecls~
+*** src_haskell{replaceDecls}
 
     #+begin_src haskell
     -- |This is a function
@@ -860,8 +860,8 @@ addLocaLDecl1 libdir top = do
   return $ replaceDecls top [de1'', d2', d3]
 #+end_src
 
-*** ~modifyValD~
-- Remember ~FunBind~?
+*** src_haskell{modifyValD}
+- Remember src_haskell{FunBind}?
 
 #+begin_src haskell
 ..
@@ -953,11 +953,11 @@ exactPrint :: ExactPrint ast => ast -> String
 #+end_notes
 
 ** Name tie-ups
-- All ~RdrName~ s in the AST are ~LocatedN~, containing
-  a ~SrcSpan~ when originally parsed.
-- The ~RenamedSource~ does not remove named locations,
+- All src_haskell{RdrName}s in the AST are src_haskell{LocatedN}, containing
+  a src_haskell{SrcSpan} when originally parsed.
+- The src_haskell{RenamedSource} does not remove named locations,
   although it may move them around a bit.
-- So perform a generic traversal of the ~RenamedSource~,
+- So perform a generic traversal of the src_haskell{RenamedSource},
   building a map of
  #+begin_src haskell
  SrcSpan -> Name
@@ -965,7 +965,7 @@ exactPrint :: ExactPrint ast => ast -> String
 
 * Future
 - Fixity info
-- ~GHC_CPP~
+- src_haskell{GHC_CPP}
 - Free vars?
 - Easy Export of Name table for lookup?
 - ghc-exactprint API
@@ -982,13 +982,13 @@ exactPrint :: ExactPrint ast => ast -> String
 - Sorry for the breakage
 - Porting/changes at [[https://gist.github.com/alanz/e127e7561ddf1cfeb07fbdee9a966794][Exact Print Annotations GHC 9.10 changes]]
 - TLDR
-  - remove ~makeDeltaAst~, otherwise there will be no ~SrcSpan~
+  - remove src_haskell{makeDeltaAst}, otherwise there will be no src_haskell{SrcSpan}
     anywhere in the AST (but when ready to make a change, using it to
     capture spacing of the local thing being edited may help)
-  - ~EpAnnNotUsed~ is gone, use ~noAnn~ instead
-  - ~uniqueSrcSpanT~ is no longer needed, use an appropriate
-    ~EpaDelta~ location instead
-  - ~EpaDelta (DifferentLine row col)~ interprets ~col~ differently.
+  - src_haskell{EpAnnNotUsed} is gone, use src_haskell{noAnn} instead
+  - src_haskell{uniqueSrcSpanT} is no longer needed, use an appropriate
+    src_haskell{EpaDelta} location instead
+  - src_haskell{EpaDelta (DifferentLine row col)} interprets src_haskell{col} differently.
     You must add 1 to get the prior spacing.
 
 * End
