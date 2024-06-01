@@ -58,6 +58,16 @@ ZuriHac, 2024-06-07
 - Led to haskell-ide-engine, to expose it to users
 - And into GHC to make it useful for this
 
+#+begin_notes
+- Started with projecteuler. Got to 120 or so
+- First HaRe commit Sep 2012
+- First commit was to start removing "landmines" from the AST.
+  - First API Annotations commit Nov 2014
+- HIE: Pre-LSP. I had seen omnisharp, its precursor
+- At that stage HaRe was using the raw token stream, decided to
+  exactprint instead.
+#+end_notes
+
 * This Talk
 - What is the problem being solved
 - What it means inside GHC
@@ -86,8 +96,7 @@ To allow a tool to
     - Spacing
 
 #+begin_notes
-- Unless care is taken, information vital to being able to reproduce
-  the source will be lost.
+- We cannot reproduce the original source code unless all information is captured
 - Broadly, Literals, Trivia, which is things like keywords, commas,
   semicolons, brackets of all kinds
 - And of course Spacing.
@@ -108,9 +117,10 @@ To allow a tool to
 
 #+begin_notes
 - Take parsing a simple integer constant, value 1.
-  <NEXT>
-  - These are all ways it can be written.
-- Or a pragma. <NEXT>
+- <NEXT>
+  - These are some of the ways it can be written.
+- Or a pragma.
+- <NEXT>
 - So we have to keep the as-written text for all of these.
 #+end_notes
 
@@ -118,22 +128,25 @@ To allow a tool to
 
 #+begin_src haskell
 let
+   -- a comment
    fa :: Int
    fa = 1
 in fa
 #+end_src
 
 #+begin_notes
+- Trivia is everything that does not make it into the AST
 - Here is a fragment of code for a let expression.
-- Trivia is `let`, `::`, `=`, `in`
+- Trivia is `let`, comment, `::`, `=`, `in`
 #+end_notes
 
 ** Spacing
 
 #+begin_notes
-- Spacing is a funny thing.
-- To simply reproduce the original code, we use the SrcSpan locations,
-  no problem.
+- Like time stops everything happening all at once, space stops it all
+  from being in the same place
+- On the face of it it seems simple
+- To reproduce the original code, we just use the SrcSpan locations
 - But when you want to change things it gets complicated
   - Add or delete lines
   - Move a block of code from one place to another
@@ -152,14 +165,14 @@ A located AST element is treated as a self-contained unit
   - We believe its span end point
 
 #+begin_notes
-- The exact print annotations embody a principle for spacing
+- For exact print annotations we have a principle for spacing
 - We apply this principle to be able to change and print
   (meaningfully) an ast.
-  <NEXT>
+- <NEXT>
 - when we are inside the fragment, we have everything we need to be
   able to print it.
 - we can print it based only on what is inside
-  <NEXT>
+- <NEXT>
 - Looking out belief: we will clarify what this means in subsequent slides
 #+end_notes
 
@@ -168,7 +181,8 @@ A located AST element is treated as a self-contained unit
 - When we print, we have a print head that we advance
 - By distances calculated from the absolute locations
 #+begin_notes
-So
+But first, lets look at printing an unchanged ast
+- <READ SLIDE>
 - We track two locations
   - The output print position, which always advances as we print
   - The offset calculation position, which we reset every time we enter a span
@@ -199,18 +213,18 @@ At the top level, it is wrapped in a SrcSpan, setting its start and end position
 [[./images-work/let-in-boxes-spacing.png]]
 #+begin_notes
 - We use distance from the end of one span to the start of the next to
-work out how much space to emit when printing
-- And we believe the start and end span locations for these
-  calculations.
+  work out how much space to emit when printing
+- And we believe the start and end span locations, in the sense that
+  we trust them for these calculations
 #+end_notes
 *** Spacing : the missing piece
 #+ATTR_REVEAL: :frag (appear appear)
 - How do we change things?
 - Deltas : Directly provide the spacing
 
- #+begin_notes
+#+begin_notes
 There is one remaining problem
-<NEXT>
+- <NEXT>
 - How do we change things?
   - If we delete a piece, there will be a gap
   - If we add something, there will be some kind of jump
@@ -223,7 +237,7 @@ There is one remaining problem
     actual span we see
   - We believe the start position in a span
   - It will come after a delta, so the spacing is known
- #+end_notes
+#+end_notes
 
 *** Spacing size changes example
 [[./images-work/let-in-longer-boxes-raw.png]]
@@ -242,7 +256,7 @@ There is one remaining problem
 - The spacing calculation to the start point is unchanged, so all is
   good
 - When we finish, we set the offset calculation position to the end of the span
-  (We believe the end position)
+  (We believe the end position, and have an independent output position)
 - And so following spacing calculations are unaffected.
 #+end_notes
 
@@ -250,9 +264,9 @@ There is one remaining problem
 
 - The same principle holds for bigger changes.
 - If we add additional content inside a span, it does not matter,
-- The “contract” with the surroundings is the start of the span for
-  entry spacing
-- And the end of the span for exit spacing
+- The “contract” with the surroundings is
+  - the start of the span for entry spacing
+  - and the end of the span for exit spacing
 
 *** Spacing : deltas
 
@@ -285,21 +299,29 @@ data DeltaPos
   in ones from elsewhere.
 - And may have adjusted the spacing with explicit deltas.
 
-*** Order in lists 3
+#+begin_notes
+- There are some more wrinkles.
+- <READ SLIDE>
+- And so just sorting is not an option for printing a changed AST
+#+end_notes
+
+*** Ordering things 3
 [[./images-work/ordering-smaller.png]]
 #+ATTR_REVEAL: :frag t
 [[./images-work/ordering-sortkey-smaller.png]]
 
 #+begin_notes
-so we draw first from the signatures, then the binds, and same again.
+- Here is an example, of valbinds with two sigs and two binds
 - Each specific list is physically ordered, so for src_haskell{ValBinds} we know
   the order of the sigs, and of the binds.
-- But we don’t know the interleaving.
-- We supply this in an src_haskell{AnnSortKey}, which drives a merge process.
-- It keeps a list of src_haskell{SigDTag} or src_haskell{BindTag} for
-  a src_haskell{ValBind}, telling which list to draw from each time.
+- But we don’t know the interleaving if they were changed
+- <NEXT>
+- If so, in addition to the lists of binds and sigs we store a list of
+  tags
+- We print according to these, driving a merge
+  - so we draw first from the signatures, then the binds, and same
+    again.
 #+end_notes
-
 
 ** Comments
 - Comments are the ultimate “trivia”. They have no influence on
@@ -314,15 +336,16 @@ so we draw first from the signatures, then the binds, and same again.
 [[./images-work/do-trailing-boxes.png]]
 
 #+begin_notes
+- The final item in this section
+- The image shows a trailing semi, with a red link to the preceding declaration
 - The ast can be seen as an assembly of nested, ordered, self-contained boxes.
 - To keep them reusable, we leave trailing items in the upper level.
-- The self-contained belief we base everything on is that everything fits
-  inside the AST Element span.
-- This is true for everything, except trailing items.
+- The self-contained principle says that everything fits inside the AST Element span.
+- So trailing items cannot be in the span, but are associated with it.
 - If you consider a list of items, each item is a standalone entity
-- The commas exist as part of the surrounding structure.
+- The semis exist as part of the surrounding structure.
 - So if you move the item elsewhere, or replace it with something
-  else, the trailing comma should be managed as part of that location.
+  else, the trailing semi should be managed as part of that location.
 - Others are semicolons, vertical bars, single and double arrows
 #+end_notes
 
@@ -332,6 +355,9 @@ so we draw first from the signatures, then the binds, and same again.
   print annotations are for
 - Now we can look into some details of how things are captured in GHC
 
+#+begin_notes
+- Any questions?
+#+end_notes
 
 * What it means inside GHC
 - Located things
@@ -351,13 +377,17 @@ type ParsedSource = Located (HsModule GhcPs)
 For now we accept src_haskell{GhcPs} as simply a marker of the AST from the
 parsing phase.
 
+#+begin_notes
+But first some terminology
+#+end_notes
+
 ** Located Things
 
 #+begin_notes
 - The AST is layered, as we saw in the boxes diagrams earlier.
 - The types around location are a bit complex, being driven mainly by
   type families.
-- My mental model is they are functions from a type to a type.
+- My mental model is these are functions from a type to a type.
 - Lets start with the first one
   <NEXT>
 #+end_notes
@@ -376,6 +406,7 @@ type family Anno a = b
 #+ATTR_REVEAL: :frag t
 #+begin_src haskell
 type instance XRec (GhcPass p) a = GenLocated (Anno a) a
+type GhcPs   = GhcPass 'Parsed
 #+end_src
 
 #+ATTR_REVEAL: :frag t
@@ -392,15 +423,16 @@ type SrcSpanAnnA = EpAnn AnnListItem
 #+begin_notes
 - XRec has a parameter p, and maps a type 'a' to a type 'r', and fundeps say the reverse holds too.
 - `p` is a parameter that is chased through the entire AST, and for `ParsedSource` is always `GhcPs`
-  <NEXT>
+- <NEXT>
 - Anno is a type function from `a` to `b`
-  <NEXT>
+- <NEXT>
 - We create an instance (= mapping) of XRec for all GhcPass types as being located by Anno a
+- In our case we use `GhcPass Parsed`, as `GhcPs`
 - Lets make this concrete
-  <NEXT>
+- <NEXT>
 - LHsExpr is defined as an XRec type
 - And it's Anno instance is SrcSpanAnnA
-  <NEXT>
+- <NEXT>
 - which in turn is this EpAnn AnnListItem
 #+end_notes
 
@@ -423,13 +455,14 @@ data EpaLocation' a = EpaSpan !SrcSpan
 #+end_src
 
 #+begin_notes
+- Diving deeper
 - EpAnn is an augmented SrcSpan
 - the `entry` field is basically a SrcSpan when parsed
 - `ann` is the parameterised type, `AnnListItem` in our example
 - `comments` captures any comments included in the immediate
   descendents of the thing being located by this. between the sub
   boxes in the first section.
-  <NEXT>
+- <NEXT>
 - As I said, the as-parsed EpaLocation is EpaSpan, holding a SrcSpan
 - EpaDelta is used for editing and reprinting, we will deal with it in
   the next section.
@@ -450,7 +483,8 @@ data AnnListItem
 #+end_src
 
 #+begin_notes
-- A trailingann is an enumeration of a kind of trailing item and its EpaLocation
+- A src_haskell{TrailingAnn} is an enumeration of a kind of trailing
+  item and its src_haskell{EpaLocation}
   - So semicolon, comma, arrow, darrow, and vertical bar
 - we saw them in the previous section, a semicolon
 #+end_notes
@@ -491,7 +525,8 @@ Tie up to prior hand wavy part
  #+begin_notes
 - everything that is not a location, comment, or surrounding
   information, but is needed for exact printing.
- SourceText keeps the as-written source text of a literal, so it can be used when printing.
+- SourceText keeps the as-written source text of a literal, so it can
+  be used when printing.
 - keywords or trivia are all the other punctuation marks.
   - When not in a trailing usage.
  #+end_notes
@@ -513,7 +548,6 @@ data AddEpAnn = AddEpAnn AnnKeywordId EpaLocation
 
 *** src_haskell{EpToken}
 
-
 #+begin_src haskell
 data EpToken (tok :: Symbol)
   = NoEpTok
@@ -533,7 +567,7 @@ getEpTokenString (EpTok _) = Just $ symbolVal (Proxy @tok)
 #+begin_notes
 - This is the new mechanism. May eventually supplant AddEpAnn and AnnKeywordId
 - Apart from src_haskell{NoEpTok}, this is isomorphic to src_haskell{AddEpAnn}
-  <NEXT>
+- <NEXT>
 - And this shows you how to get the "let" back out for the example
 #+end_notes
 
@@ -565,12 +599,13 @@ type instance XLet GhcPs = (EpToken "let", EpToken "in")
 #+begin_notes
 - Every constructor in the GHC AST has a first field named something
   like XLet for HsLet constructor
-- It is parameterised by the global AST parameter p
+- It is parameterised by the global AST parameter p,
+  src_haskell{GhcPs} for us
 - And there is a type family for it, so instances can be defined to
   map it onto a concrete type.
-  <NEXT>
+- <NEXT>
 - For XLet and GhcPs this is a tuple for a let and an in token
-  <NEXT>
+- <NEXT>
 - Going back to our example, these capture the locations in violet
 #+end_notes
 
@@ -859,6 +894,11 @@ addLocaLDecl1 libdir top = do
                    ((wrapDecl decl' : d), Nothing)
   return $ replaceDecls top [de1'', d2', d3]
 #+end_src
+
+#+begin_notes
+TODO: more detail here.
+And do we have to break the ValD out?
+#+end_notes
 
 *** src_haskell{modifyValD}
 - Remember src_haskell{FunBind}?
