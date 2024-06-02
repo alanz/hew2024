@@ -839,7 +839,8 @@ balanceComments _libdir lp = return $ replaceDecls lp ds'
 - This is a function that changes a GHC ParsedSource
 - It gets a LibDir in case we want to parse a new fragment for insertion
 - You will notice that in addition to balanceCommentsList, it uses
-  - hsDecls and replaceDecls
+  - hsDecls and replaceDecls.
+  - We will talk about them next
 #+end_notes
 
 ** src_haskell{class HasDecls}
@@ -879,30 +880,38 @@ class (Data t) => HasDecls t where
         nn = 2
     -- trailing comment
     #+end_src
+#+begin_notes
+#+end_notes
 
 *** code for the replace
 
 #+begin_src haskell
 addLocaLDecl1 :: Changer
 addLocaLDecl1 libdir top = do
-  Right (L ld (ValD _ decl)) <- withDynFlags libdir (\df -> parseDecl df "decl" "nn = 2")
+  Right decl <- withDynFlags libdir (\df -> parseDecl df "decl" "nn = 2")
   let
-      decl' = setEntryDP (L ld decl) (DifferentLine 1 5)
-      (de1:d2:d3:_) = hsDecls top
+      (de1:d2:ds) = hsDecls top
       (de1',d2') = balanceComments de1 d2
-      (de1'',_) = modifyValD (getLocA de1') de1' $ \_m d ->
-                   ((wrapDecl decl' : d), Nothing)
-  return $ replaceDecls top [de1'', d2', d3]
+      (de1'',_) = modifyValD (getLocA de1') de1' $ \_m ds ->
+                   (decl : ds, Nothing)
+  return $ replaceDecls top (de1'':d2':ds)
 #+end_src
 
 #+begin_notes
-TODO: more detail here.
-And do we have to break the ValD out?
+- We parse a new declaration src_haskell{nn = 2}
+  - NOTE: its initial location is ignored, we use the surrounding decl
+    list context for the starting point.
+- Then we get the list of decls, broken into first, next and rest
+  - In the source example there is a second function, so we can show
+    the trailing comments
+- We then call modifyValD to do the work.
+  - I will explain more in the next slides,
+  - but the key point is the lambda that receives the existing match
+    local binds in src_haskell{ds} and prepends src_haskell{decl} to
+    them
 #+end_notes
 
 *** src_haskell{modifyValD}
-- Remember src_haskell{FunBind}?
-
 #+begin_src haskell
 ..
 [ma1,_ma2] = ms -- of de1
@@ -914,45 +923,55 @@ And do we have to break the ValD out?
 type Decl  = LHsDecl GhcPs
 type PMatch = LMatch GhcPs (LHsExpr GhcPs)
 modifyValD
-   :: forall t. SrcSpan -> Decl
+   :: forall t.
+   -> SrcSpan
+   -> Decl
    -> (PMatch -> [Decl] -> ([Decl], Maybe t))
    -> (Decl, Maybe t)
 #+end_src
 
 #+begin_notes
-- Modify a 'LHsBind' wrapped in a 'ValD'.
-- For a 'FunBind' the supplied 'SrcSpan' is used to identify the
-  specific 'Match' to be transformed, for when there are multiple of
+- Modify a  src_haskell{FunBind} wrapped in a src_haskell{ValD}.
+- The supplied src_haskell{SrcSpan} is used to identify the specific
+  src_haskell{Match} to be transformed, for when there are multiple of
   them.
-- It is a bit janky, no need to return Maybe t, user can wrap it in
-  state.
-- It takes the FunBind, as a Decl.
-- A function taking a Match and a list of its local binds (as Decls)
-- And returning updated local binds, and whatever
-- And it returns the updated FunBind as a decl
+- The parameters are
+  - The src_haskell{FunBind}, as a src_haskell{Decl}.
+  - A function taking a src_haskell{Match} and a list of its local binds (as src_haskell{Decl}s)
+    - And returning updated local binds, and whatever
+- And it returns the updated src_haskell{FunBind} as a src_haskell{Decl}
+- It is a bit janky, no need to return src_haskell{Maybe t}, user can wrap it in
+  state if they need it
 #+end_notes
 
 *** There is a lot going on under the hood
-- unpack the funbind for comments
-- extract the local binds, sorted according to the AnnSortKey, as decls
+- unpack the src_haskell{FunBind} for comments
+- extract the local binds, sorted according to the src_haskell{AnnSortKey}, as decls
 - Apply the function
-- When replacing, add or remove 'where' if it was empty or becomes empty
-- And update the AnnSortKey
-- pack the funbind for comments
+- When replacing, add or remove src_haskell{where} if it was empty or becomes empty
+- And update the src_haskell{AnnSortKey}
+- pack the src_haskell{FunBind} for comments
+
+#+begin_notes
+- I will explain about packing and unpacking funbinds next
+#+end_notes
 
 *** packFunBind, unpackFunBind
 - unpackFunBind
 - packFunBind
 
 #+begin_notes
-- As I explained earlier, if we are working with a FunDecl in a list
-  of Decls, we need to be able to work with its leading and trailing
-  comments, for example to balance comments
-- But a FunBind is just a container for self-contained matches, and
-  those are the things we print
-- So unpackFunBind takes these ValD level prior and following comments
-  and pushes them down to the first and last match respectively
-- After changes are made to the matches, packFunBind does the reverse
+- As I explained earlier, if we are working with a
+  src_haskell{FunBind} in a list of src_haskell{Decl}s, we need to be
+  able to work with its leading and trailing comments, for example to
+  balance comments
+- But a src_haskell{FunBind} is just a container for self-contained
+  src_haskell{Match}es, and those are the things we print
+- So src_haskell{unpackFunBind} takes these src_haskell{ValD} level
+  prior and following comments and pushes them down to the first and
+  last src_haskell{Match} respectively
+- After changes are made to the matches, src_haskell{packFunBind} does
+  the reverse
 #+end_notes
 
 *** insertAt and friends
@@ -973,11 +992,14 @@ insertAfter, insertBefore :: HasDecls (LocatedA ast)
 #+begin_notes
 - There is another set of utilities, put in by Matt Pickering for the
   hlint apply refact integration
-- Insert a declaration at the beginning or end of the subdecls of the
+- Insert a declaration at the src_haskell{beginning or end} of the subdecls of the
   given AST item having sub-declarations
- <NEXT>
-- Insert a declaration at a specific location in the subdecls of the
-  given AST item having sub-declarations
+- <NEXT>
+- Insert a declaration at a src_haskell{specific location} in the
+  subdecls
+- Note that src_haskell{insertBefore} and src_haskell{insertAfter}
+  will only work on a list of decls without deltas in them
+  - Which is fine, for a one-shot change
 #+end_notes
 
 ** ghc-exactprint print
@@ -987,8 +1009,11 @@ exactPrint :: ExactPrint ast => ast -> String
 #+end_src
 
 #+begin_notes
-- This is the heart of the thing
-- But will not look in detail, it is too complex
+- The output stage of "input, process output"
+- This is the heart of the thing, it accurately reproduces the ast,
+  with modifications.
+- But we will not look in detail, it is too complex for the time
+  allowed
 - I will be around, can take anyone interested over it
 #+end_notes
 
@@ -998,10 +1023,13 @@ exactPrint :: ExactPrint ast => ast -> String
 - The src_haskell{RenamedSource} does not remove named locations,
   although it may move them around a bit.
 - So perform a generic traversal of the src_haskell{RenamedSource},
-  building a map of
- #+begin_src haskell
- SrcSpan -> Name
- #+end_src
+  building a map of src_haskell{SrcSpan -> Name}
+
+#+begin_notes
+- And now on to some more tangential things, as we head toward wrapping
+- I am a bit out of the loop at the moment, this functionality may
+  already exist somewhere
+#+end_notes
 
 * Future
 - Fixity info
@@ -1011,12 +1039,29 @@ exactPrint :: ExactPrint ast => ast -> String
 - ghc-exactprint API
   - currently provisional
   - should it be split?
-    - parsing
-    - printing
-    - low-level API
-    rest outside
   - where should it live?
 - Link-up with ghc-lib-parser
+
+#+begin_notes
+- Here are some things that I think are worth doing around this area
+- Fixity.
+  - The problem is that the ParseSource does not know operator
+    precedence, so builds a tree giving all operators the same
+    precedence.
+  - In GHC the tree is re-written in the the Renamer to properly
+    reflect the actual precedences
+  - And it is vital to work with a rewritten tree.
+  - We have code dealing with it in hlint, retrie, probably a few more.
+    - And this is best effort, using known built in fixities
+  - Solution is
+    - put this fixity processing in one place
+    - improve it, be making it available from GHC
+- GHC CPP
+  - The ghc-exactprint processing is very poor.
+  - CPP is too powerful, it processes directives in comments, trailing backslashes, etc
+  - I am convinced >90% of usage could be captured with a reduced power option
+  - I have a GHC proposal, intend taking it forward real soon now
+#+end_notes
 
 * GHC 9.10
 - Sorry for the breakage
@@ -1035,4 +1080,7 @@ exactPrint :: ExactPrint ast => ast -> String
 
 - https://github.com/alanz/ghc-exactprint
 - [[https://gist.github.com/alanz/e127e7561ddf1cfeb07fbdee9a966794][Exact Print Annotations GHC 9.10 changes]]
+- [[https://github.com/ghc-proposals/ghc-proposals/pull/616][GHC CPP proposal]]
 
+
+Questions?
