@@ -56,7 +56,6 @@ ZuriHac, 2024-06-07
 - Decided to resurrect HaRe, using GHC backend
 - First GHC commit Sep 2014
 - Led to haskell-ide-engine, to expose it to users
-- And into GHC to make it useful for this
 
 #+begin_notes
 - Started with projecteuler. Got to 120 or so
@@ -64,8 +63,6 @@ ZuriHac, 2024-06-07
 - First commit was to start removing "landmines" from the AST.
   - First API Annotations commit Nov 2014
 - HIE: Pre-LSP. I had seen omnisharp, its precursor
-- At that stage HaRe was using the raw token stream, decided to
-  exactprint instead.
 #+end_notes
 
 * This Talk
@@ -76,9 +73,9 @@ ZuriHac, 2024-06-07
 #+begin_notes
 - Going through material, it is a huge topic, chat to me at ZuriHac
 - First a Hand-wavy attempt to motivate the problem being solved
-- Then how we capture the required information inside GHC, aimed at
+- Then how we capture the information needed inside GHC, aimed at
   GHC developers and ghc-exactprint users
-- Finally how to use the provided facilities in the real world
+- Finally how to use it in the real world
 #+end_notes
 
 * Problem Being Solved
@@ -96,8 +93,8 @@ To allow a tool to
     - Spacing
 
 #+begin_notes
-- We cannot reproduce the original source code unless all information is captured
-- Broadly, Literals, Trivia, which is things like keywords, commas,
+- To be able to print everything, we need to capture everything
+- In broad terms the information is Literals, Trivia, which is things like keywords, commas,
   semicolons, brackets of all kinds
 - And of course Spacing.
 - Let look at each of these in turn
@@ -158,14 +155,15 @@ in fa
 A located AST element is treated as a self-contained unit
 #+ATTR_REVEAL: :frag (appear appear)
 - Looking in
-  - Everything we need to print it is inside
+  - It is located, so it has a span
+  - Everything we need to print it is inside the located element
   - Nothing is printed outside its span
 - Looking out
-  - We believe its span start point
-  - We believe its span end point
+  - We trust its span start point
+  - We trust its span end point
 
 #+begin_notes
-- For exact print annotations we have a principle for spacing
+- So we have a principle for spacing
 - We apply this principle to be able to change and print
   (meaningfully) an ast.
 - <NEXT>
@@ -173,7 +171,7 @@ A located AST element is treated as a self-contained unit
   able to print it.
 - we can print it based only on what is inside
 - <NEXT>
-- Looking out belief: we will clarify what this means in subsequent slides
+- I will explain what this trust means shortly
 #+end_notes
 
 *** Spacing : printing
@@ -183,11 +181,11 @@ A located AST element is treated as a self-contained unit
 #+begin_notes
 But first, lets look at printing an unchanged ast
 - <READ SLIDE>
-- We track two locations
+- So, we track two locations
   - The output print position, which always advances as we print
-  - The offset calculation position, which we reset every time we enter a span
-    - (remember “we believe the start position of a span”)
-  - And also set every time we exit a span (“belief”)
+  - The offset calculation position, which we reset every time we
+    enter or exit a span
+    - (remember “we trust the start and end positions of a span”)
   - Otherwise it also advances as we print
 #+end_notes
 
@@ -207,38 +205,16 @@ At the top level, it is wrapped in a SrcSpan, setting its start and end position
 [[./images-work/let-in-boxes-middle.png]]
 #+begin_notes
 - If we go into the box, we find 4 more
-- Two are trivia, two are more boxes we can go into
+- Two are trivia, two are more boxes we could go into
 #+end_notes
 *** Spacing example: spacing
 [[./images-work/let-in-boxes-spacing.png]]
 #+begin_notes
 - We use distance from the end of one span to the start of the next to
   work out how much space to emit when printing
-- And we believe the start and end span locations, in the sense that
-  we trust them for these calculations
+- And we trust the start and end span locations, in the sense that we
+  use them for these calculations
 #+end_notes
-*** Spacing : the missing piece
-#+ATTR_REVEAL: :frag (appear appear)
-- How do we change things?
-- Deltas : Directly provide the spacing
-
-#+begin_notes
-There is one remaining problem
-- <NEXT>
-- How do we change things?
-  - If we delete a piece, there will be a gap
-  - If we add something, there will be some kind of jump
-  <NEXT>
-- Deltas
-  - At the point where we change from one self contained point
-    to a changed one, we supply the delta directly
-  - Instead of calculating it from the offset calculation position.
-  - And then set the offset calculation position according to the next
-    actual span we see
-  - We believe the start position in a span
-  - It will come after a delta, so the spacing is known
-#+end_notes
-
 *** Spacing size changes example
 [[./images-work/let-in-longer-boxes-raw.png]]
 #+begin_notes
@@ -256,7 +232,7 @@ There is one remaining problem
 - The spacing calculation to the start point is unchanged, so all is
   good
 - When we finish, we set the offset calculation position to the end of the span
-  (We believe the end position, and have an independent output position)
+  (We trust the end position, and have an independent output head)
 - And so following spacing calculations are unaffected.
 #+end_notes
 
@@ -267,6 +243,28 @@ There is one remaining problem
 - The “contract” with the surroundings is
   - the start of the span for entry spacing
   - and the end of the span for exit spacing
+
+*** Spacing : the missing piece
+#+ATTR_REVEAL: :frag (appear appear)
+- How do we really change things?
+- Deltas : Directly provide the spacing
+
+#+begin_notes
+There is one remaining problem
+- <NEXT>
+- How do we change things?
+  - If we delete a piece, there will be a gap
+  - If we add something, there will be some kind of jump
+  <NEXT>
+- Deltas
+  - At the point where we change from one self contained point
+    to a changed one, we supply the delta directly
+  - Instead of calculating it from the offset calculation position.
+  - And then set the offset calculation position according to the next
+    actual span we see
+  - We trust the start position in a span
+  - It will come after a delta, so the spacing is known
+#+end_notes
 
 *** Spacing : deltas
 
@@ -290,6 +288,10 @@ data DeltaPos
 - src_haskell{ClassDecl} and src_haskell{ClsInstDecl} separate out src_haskell{Bind}s,
   src_haskell{Sig}s, Type family instances etc
 - For all of these, the original source can have them in any order.
+
+#+begin_notes
+Our next problem is how to order things
+#+end_notes
 
 *** Ordering things 2
 
@@ -330,7 +332,11 @@ data DeltaPos
 - So we keep them in the "~SrcSpan~ on steroids" we wrap
   everything in, and fit them in when we print, if they fit into the
   current gap.
-- It’s more complicated than that, but we will look into detail later.
+
+#+begin_notes
+- It’s more complicated than that, but we don't have time to look into
+  the full detail today
+#+end_notes
 
 ** Trailing Items
 [[./images-work/do-trailing-boxes.png]]
@@ -347,6 +353,7 @@ data DeltaPos
 - So if you move the item elsewhere, or replace it with something
   else, the trailing semi should be managed as part of that location.
 - Others are semicolons, vertical bars, single and double arrows
+- We will see how this loose attachment is managed later
 #+end_notes
 
 ** End of Hand Wavy Part
@@ -360,11 +367,16 @@ data DeltaPos
 #+end_notes
 
 * What it means inside GHC
+#+begin_src haskell
+L l a
+#+end_src
 - Located things
 - Internal Annotations
 
 #+begin_notes
-Time to dive into the detail. Two main divisions
+- Time to dive into the detail. Two main divisions
+- Located things are in the l
+- Internal are in the a
 #+end_notes
 
 ** Terminology
@@ -387,7 +399,7 @@ But first some terminology
 - The AST is layered, as we saw in the boxes diagrams earlier.
 - The types around location are a bit complex, being driven mainly by
   type families.
-- My mental model is these are functions from a type to a type.
+- My mental model is that a type family is a function from types to types.
 - Lets start with the first one
   <NEXT>
 #+end_notes
@@ -413,11 +425,12 @@ type GhcPs   = GhcPass 'Parsed
 #+begin_src haskell
 type LHsExpr p = XRec p (HsExpr p)
 type instance Anno (HsExpr (GhcPass p)) = SrcSpanAnnA
+type SrcSpanAnnA = EpAnn AnnListItem
 #+end_src
 
 #+ATTR_REVEAL: :frag t
 #+begin_src haskell
-type SrcSpanAnnA = EpAnn AnnListItem
+type LHsExpr GhcPs = GenLocated (EpAnn AnnListItem) (HsExpr GhcPs)
 #+end_src
 
 #+begin_notes
@@ -432,8 +445,8 @@ type SrcSpanAnnA = EpAnn AnnListItem
 - <NEXT>
 - LHsExpr is defined as an XRec type
 - And it's Anno instance is SrcSpanAnnA
-- <NEXT>
 - which in turn is this EpAnn AnnListItem
+- <NEXT>
 #+end_notes
 
 *** EpAnn
@@ -487,6 +500,7 @@ data AnnListItem
   item and its src_haskell{EpaLocation}
   - So semicolon, comma, arrow, darrow, and vertical bar
 - we saw them in the previous section, a semicolon
+- And this is how we do the "loose attachement" of trailing anns.
 #+end_notes
 
 *** Sanity check
@@ -507,13 +521,13 @@ Tie up to prior hand wavy part
 #+begin_notes
 - After this deep dive into types, let's come up for air a bit.
 - If you recall in the handwavy part we spoke about span being the
-  source of truth, the thing we believe.
-- src_haskell{SrcSpan} we "believe" is the one in the src_haskell{EpAnn entry}, using the
+  source of truth, the thing we trust.
+- src_haskell{SrcSpan} we trust is the one in the src_haskell{EpAnn entry}, using the
   src_haskell{EpaSpan} constructor.
 - If we need to move things around, the surgery happens by replacing
   it with an appropriate src_haskell{EpaDelta} version, just for the
-  point where the change happens.
-- For ghc-exactprint old hands, makeDeltaAst is no longer required (but still exists)
+  point where the change happens, and maybe the immediately following one
+- For ghc-exactprint old hands, src_haskell{makeDeltaAst} is no longer required (but still exists)
 - Now back to the next kind, storage of internal annotations
 #+end_notes
 
@@ -542,7 +556,7 @@ data AddEpAnn = AddEpAnn AnnKeywordId EpaLocation
 #+end_src
 
 #+begin_notes
-- This is the original mechanism for capturing trivia.
+- This is the original mechanism for capturing keywords.
 - It is an enumeration of what it is, together with its location.
 #+end_notes
 
@@ -686,7 +700,7 @@ parseModule :: LibDir -> FilePath -> IO (ParseResult GHC.ParsedSource)
 - Intention: smallest changes possible
 - So makeDeltaAst is no longer needed, and makes it impossible to map
   locations back to the AST to be changed.
-- But lets first go off at a tangent
+- But first lets go off at a tangent
 #+end_notes
 
 *** Comments
@@ -881,6 +895,10 @@ class (Data t) => HasDecls t where
     -- trailing comment
     #+end_src
 #+begin_notes
+- This is the effect of calling src_haskell{replaceDecls} on the
+  specific src_hakell{Match} of the function src_haskell{foo}
+- You will notice it inserts the now-needed src_haskell{where}
+- And does sane things with the comments
 #+end_notes
 
 *** code for the replace
@@ -935,10 +953,10 @@ modifyValD
 - The supplied src_haskell{SrcSpan} is used to identify the specific
   src_haskell{Match} to be transformed, for when there are multiple of
   them.
-- The parameters are
+- The other parameters are
   - The src_haskell{FunBind}, as a src_haskell{Decl}.
   - A function taking a src_haskell{Match} and a list of its local binds (as src_haskell{Decl}s)
-    - And returning updated local binds, and whatever
+    - And returning updated local binds, and src_haskell{Maybe} whatever
 - And it returns the updated src_haskell{FunBind} as a src_haskell{Decl}
 - It is a bit janky, no need to return src_haskell{Maybe t}, user can wrap it in
   state if they need it
@@ -951,6 +969,8 @@ modifyValD
 - When replacing, add or remove src_haskell{where} if it was empty or becomes empty
 - And update the src_haskell{AnnSortKey}
 - pack the src_haskell{FunBind} for comments
+- Note: it is up to the user-supplied function to call
+  src_haskell{balanceComments} on the provided decls if needed.
 
 #+begin_notes
 - I will explain about packing and unpacking funbinds next
