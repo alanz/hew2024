@@ -8,7 +8,12 @@
 #+REVEAL_INIT_OPTIONS: width:1200, height:800, margin: 0.1, minScale:0.2, maxScale:2.5
 #+OPTIONS: num:nil
 #+OPTIONS: reveal_slide_number:c/t
-#+OPTIONS: toc:1
+# #+OPTIONS: toc:1
+#+OPTIONS: toc:0
+
+# 50 mins x 60 secs is 3000
+#+OPTIONS: reveal_totaltime:3000
+
 #+OPTIONS: reveal_center:nil
 # #+REVEAL_THEME: simple
 # #+REVEAL_THEME: white-contrast
@@ -52,6 +57,9 @@ Haskell Ecosystem Workshop,
 ZuriHac, 2024-06-07
 
 * About Me
+:PROPERTIES:
+:reveal_extra_attr: data-timing="120"
+:END:
 - Learned Haskell in 2012
 - Decided to resurrect HaRe, using GHC backend
 - First GHC commit Sep 2014
@@ -68,14 +76,15 @@ ZuriHac, 2024-06-07
 * This Talk
 - What is the problem being solved
 - What it means inside GHC
-- What it means outside GHC
+- How it is used outside GHC
 
 #+begin_notes
-- Going through material, it is a huge topic, chat to me at ZuriHac
+- This is a large topic, I can only cover osme of it. chat to me at ZuriHac
 - First a Hand-wavy attempt to motivate the problem being solved
 - Then how we capture the information needed inside GHC, aimed at
-  GHC developers and ghc-exactprint users
-- Finally how to use it in the real world
+  GHC developers
+- Finally how to use it in the real world, aimed at ghc-exactprint
+  users
 #+end_notes
 
 * Problem Being Solved
@@ -83,8 +92,10 @@ To allow a tool to
 - start from a src_haskell{GHC ParsedSource},
 - make changes to it,
 - print source reflecting the changes.
-#+ATTR_REVEAL: :frag t
-  - And only the changes.
+
+#+begin_notes
+- And only the changes
+#+end_notes
 
 ** Start from GHC ParsedSource
 - It must accurately reflect the input source
@@ -97,7 +108,7 @@ To allow a tool to
 - In broad terms the information is Literals, Trivia, which is things like keywords, commas,
   semicolons, brackets of all kinds
 - And of course Spacing.
-- Let look at each of these in turn
+- Let us look at each of these in turn
 #+end_notes
 
 ** Literals
@@ -147,25 +158,24 @@ in fa
 - But when you want to change things it gets complicated
   - Add or delete lines
   - Move a block of code from one place to another
-    - Which can also change its indentation
  <NEXT>
 #+end_notes
 
 *** Principle for Spacing
 A located AST element is treated as a self-contained unit
 #+ATTR_REVEAL: :frag (appear appear)
-- Looking in
+- From the inside
   - It is located, so it has a span
   - Everything we need to print it is inside the located element
   - Nothing is printed outside its span
-- Looking out
+- From the outside
   - We trust its span start point
   - We trust its span end point
 
 #+begin_notes
 - So we have a principle for spacing
-- We apply this principle to be able to change and print
-  (meaningfully) an ast.
+- We apply this principle to be able to change and print an ast.
+- <READ SLIDE>
 - <NEXT>
 - when we are inside the fragment, we have everything we need to be
   able to print it.
@@ -181,12 +191,15 @@ A located AST element is treated as a self-contained unit
 #+begin_notes
 But first, lets look at printing an unchanged ast
 - <READ SLIDE>
+- We don't print at an absolute location. We move to a place, and then
+  print.
 - So, we track two locations
   - The output print position, which always advances as we print
   - The offset calculation position, which we reset every time we
     enter or exit a span
     - (remember “we trust the start and end positions of a span”)
   - Otherwise it also advances as we print
+- For an unmodified AST these are always perfectly in sync
 #+end_notes
 
 *** Spacing example
@@ -239,14 +252,14 @@ At the top level, it is wrapped in a SrcSpan, setting its start and end position
 *** Spacing : size changes 2
 
 - The same principle holds for bigger changes.
-- If we add additional content inside a span, it does not matter,
+- If we change content inside a span, it does not matter,
 - The “contract” with the surroundings is
   - the start of the span for entry spacing
   - and the end of the span for exit spacing
 
 *** Spacing : the missing piece
 #+ATTR_REVEAL: :frag (appear appear)
-- How do we really change things?
+- How do we change things?
 - Deltas : Directly provide the spacing
 
 #+begin_notes
@@ -257,6 +270,8 @@ There is one remaining problem
   - If we add something, there will be some kind of jump
   <NEXT>
 - Deltas
+  - when we print we have an output head, and all we
+    need to know is how far to move before printing again.
   - At the point where we change from one self contained point
     to a changed one, we supply the delta directly
   - Instead of calculating it from the offset calculation position.
@@ -275,9 +290,10 @@ data DeltaPos
 #+end_src
 
 #+begin_notes
-- The red arrows above map onto a `DeltaPos`, which can have line/col
+- The red arrows we saw before map onto a `DeltaPos`, which can have
+  line/col
 - Haskell is a layout-sensitive language
-- Our offset position also tracks the current indentation level, so
+- Our print offset position also tracks the current indentation level, so
   the src_haskell{deltaColumn} is added to that.
 #+end_notes
 
@@ -316,7 +332,7 @@ Our next problem is how to order things
 - Here is an example, of valbinds with two sigs and two binds
 - Each specific list is physically ordered, so for src_haskell{ValBinds} we know
   the order of the sigs, and of the binds.
-- But we don’t know the interleaving if they were changed
+- But we don’t know the interleaving if we cant use src_haskell{SrcSpan}s
 - <NEXT>
 - If so, in addition to the lists of binds and sigs we store a list of
   tags
@@ -334,6 +350,7 @@ Our next problem is how to order things
   current gap.
 
 #+begin_notes
+- <READ SLIDE>
 - It’s more complicated than that, but we don't have time to look into
   the full detail today
 #+end_notes
@@ -345,38 +362,42 @@ Our next problem is how to order things
 - The final item in this section
 - The image shows a trailing semi, with a red link to the preceding declaration
 - The ast can be seen as an assembly of nested, ordered, self-contained boxes.
-- To keep them reusable, we leave trailing items in the upper level.
-- The self-contained principle says that everything fits inside the AST Element span.
+- The self-contained principle says that everything fits inside the
+  AST Element span.
 - So trailing items cannot be in the span, but are associated with it.
 - If you consider a list of items, each item is a standalone entity
 - The semis exist as part of the surrounding structure.
 - So if you move the item elsewhere, or replace it with something
   else, the trailing semi should be managed as part of that location.
-- Others are semicolons, vertical bars, single and double arrows
+- Other trailing items are commas in tuples, vertical bars in data
+  definitions, single and double arrows in type signatures
 - We will see how this loose attachment is managed later
 #+end_notes
 
 ** End of Hand Wavy Part
 
-- Hopefully you now have a high level understanding of what the exact
-  print annotations are for
-- Now we can look into some details of how things are captured in GHC
+#+ATTR_REVEAL: :frag appear
+Questions?
 
 #+begin_notes
-- Any questions?
+- Hopefully you now have a high level understanding of what the exact
+  print annotations are for
+- Next we can look into some details of how things are captured in GHC
+- But first, any questions?
+- <NEXT>
 #+end_notes
 
 * What it means inside GHC
-#+begin_src haskell
-L l a
-#+end_src
 - Located things
 - Internal Annotations
 
 #+begin_notes
-- Time to dive into the detail. Two main divisions
-- Located things are in the l
-- Internal are in the a
+- Time to dive into the detail.
+- There are two main divisions
+- Located things
+- Internal things
+- the AST consists of a nested interleaving of located things, so
+  pretty much every ast element has a location and the thing itself
 #+end_notes
 
 ** Terminology
@@ -396,7 +417,8 @@ But first some terminology
 ** Located Things
 
 #+begin_notes
-- The AST is layered, as we saw in the boxes diagrams earlier.
+- As I said, the AST is layered, as we saw in the boxes diagrams
+  earlier.
 - The types around location are a bit complex, being driven mainly by
   type families.
 - My mental model is that a type family is a function from types to types.
@@ -439,14 +461,16 @@ type LHsExpr GhcPs = GenLocated (EpAnn AnnListItem) (HsExpr GhcPs)
 - <NEXT>
 - Anno is a type function from `a` to `b`
 - <NEXT>
-- We create an instance (= mapping) of XRec for all GhcPass types as being located by Anno a
-- In our case we use `GhcPass Parsed`, as `GhcPs`
+- We create an instance (= mapping) of XRec for all GhcPass types for
+  src_haskell{a} as being located by src_haskell{Anno a}
+- In our case we use src_haskell{GhcPass Parsed}, as src_haskell{GhcPs}
 - Lets make this concrete
 - <NEXT>
 - LHsExpr is defined as an XRec type
 - And it's Anno instance is SrcSpanAnnA
 - which in turn is this EpAnn AnnListItem
 - <NEXT>
+- So in effect, we have ...
 #+end_notes
 
 *** EpAnn
@@ -468,12 +492,12 @@ data EpaLocation' a = EpaSpan !SrcSpan
 #+end_src
 
 #+begin_notes
-- Diving deeper
-- EpAnn is an augmented SrcSpan
-- the `entry` field is basically a SrcSpan when parsed
-- `ann` is the parameterised type, `AnnListItem` in our example
+- We are nearly at the bottom
+- src_haskell{EpAnn} is basically an augmented src_haskell{SrcSpan}
+- since the src_haskell{entry} field carries a src_haskell{SrcSpan} when parsed
+- `ann` is the parameterised type,  src_haskell{AnnListItem} in our example
 - `comments` captures any comments included in the immediate
-  descendents of the thing being located by this. between the sub
+  descendents of the thing being located by this, between the sub
   boxes in the first section.
 - <NEXT>
 - As I said, the as-parsed EpaLocation is EpaSpan, holding a SrcSpan
@@ -493,6 +517,10 @@ data AnnListItem
   = AnnListItem {
       lann_trailing  :: [TrailingAnn]
       }
+data TrailingAnn
+  = AddSemiAnn    { ta_location :: EpaLocation }  -- ^ Trailing ';'
+  | AddCommaAnn   { ta_location :: EpaLocation }  -- ^ Trailing ','
+..
 #+end_src
 
 #+begin_notes
@@ -505,7 +533,6 @@ data AnnListItem
 
 *** Sanity check
 
-Tie up to prior hand wavy part
    #+begin_example
    (L
     (EpAnn
@@ -519,6 +546,8 @@ Tie up to prior hand wavy part
 
 
 #+begin_notes
+- This is what a dump of an AST using this location type looks like,
+  from a GHC test
 - After this deep dive into types, let's come up for air a bit.
 - If you recall in the handwavy part we spoke about span being the
   source of truth, the thing we trust.
@@ -528,7 +557,7 @@ Tie up to prior hand wavy part
   it with an appropriate src_haskell{EpaDelta} version, just for the
   point where the change happens, and maybe the immediately following one
 - For ghc-exactprint old hands, src_haskell{makeDeltaAst} is no longer required (but still exists)
-- Now back to the next kind, storage of internal annotations
+- Next we look at the storage of internal annotations
 #+end_notes
 
 ** Internal Annotations
@@ -543,6 +572,7 @@ Tie up to prior hand wavy part
   be used when printing.
 - keywords or trivia are all the other punctuation marks.
   - When not in a trailing usage.
+- Comments are also stored in the src_haskell{Located} part now
  #+end_notes
 
 *** src_haskell{AnnKeywordId}
@@ -558,6 +588,7 @@ data AddEpAnn = AddEpAnn AnnKeywordId EpaLocation
 #+begin_notes
 - This is the original mechanism for capturing keywords.
 - It is an enumeration of what it is, together with its location.
+- It tells us what to print, where
 #+end_notes
 
 *** src_haskell{EpToken}
@@ -568,7 +599,7 @@ data EpToken (tok :: Symbol)
   | EpTok !EpaLocation
 #+end_src
 
-Used as a type src_haskell{EpTok "let"}
+Used as a type: src_haskell{EpTok "let"}
 
 #+ATTR_REVEAL: :frag t
 #+begin_src haskell
@@ -579,8 +610,10 @@ getEpTokenString (EpTok _) = Just $ symbolVal (Proxy @tok)
 #+end_src
 
 #+begin_notes
-- This is the new mechanism. May eventually supplant AddEpAnn and AnnKeywordId
-- Apart from src_haskell{NoEpTok}, this is isomorphic to src_haskell{AddEpAnn}
+- This is the new mechanism. It ie likely to supplant
+  src_haskell{AddEpAnn} and src_haskell{AnnKeywordId}
+- Apart from src_haskell{NoEpTok}, this is isomorphic to
+  src_haskell{AddEpAnn}, in that it tells us what to print, and where
 - <NEXT>
 - And this shows you how to get the "let" back out for the example
 #+end_notes
@@ -618,12 +651,15 @@ type instance XLet GhcPs = (EpToken "let", EpToken "in")
 - And there is a type family for it, so instances can be defined to
   map it onto a concrete type.
 - <NEXT>
-- For XLet and GhcPs this is a tuple for a let and an in token
+- For XLet and GhcPs this is a tuple for a let and an in src_haskell{EpToken}
 - <NEXT>
 - Going back to our example, these capture the locations in violet
 #+end_notes
 
 ** Recap
+
+#+ATTR_REVEAL: :frag appear
+Questions?
 
 #+begin_notes
 This section has scratched the surface. There is a lot more I have not covered, e.g.
@@ -632,6 +668,8 @@ This section has scratched the surface. There is a lot more I have not covered, 
 - But we will now look at how we use it for its intended purpose,
   tools to change and emit updated source.
 - Recall my original motivation was the haskell refactorer
+- But first, any questions?
+- <NEXT>
 #+end_notes
 
 * What it means outside GHC
@@ -639,8 +677,8 @@ This section has scratched the surface. There is a lot more I have not covered, 
 - Generally a "hidden" library, enabling others
   - hlint apply hints
   - various plugins in HLS
-  - built for HaRe, but that now languishes
   - retrie
+  - built for HaRe, but that now languishes
 
 ** ghc-exactprint big picture
 - Parse
@@ -669,7 +707,9 @@ parsePattern :: Parser (GHC.LPat GHC.GhcPs)
 #+end_src
 
 #+begin_notes
+- This is a wrapper around the GHC parser
 - a pure function
+   - there are helpers to build appropriate src_haskell{DynFlags}
    - FilePath is used just for SrcSpan construction
    - String is the source
  <NEXT>
@@ -686,6 +726,8 @@ parseModule :: LibDir -> FilePath -> IO (ParseResult GHC.ParsedSource)
 
 #+begin_notes
 - This is the main one used when actually changing a module
+- src_haskell{LibDir} is where the GHC being used is installed. It can
+  be retrieved using the [[https://hackage.haskell.org/package/ghc-paths][ghc-paths]] package
 - "best effort" with CPP
   - compares original with preprocessed, and turns the diff into
     comments
@@ -694,12 +736,12 @@ parseModule :: LibDir -> FilePath -> IO (ParseResult GHC.ParsedSource)
 #+end_notes
 
 ** ghc-exactprint transform
-- The reason src_haskell{ghc-exactprint} exists
 #+begin_notes
-- And the exact print annotations in GHC
-- Intention: smallest changes possible
-- So makeDeltaAst is no longer needed, and makes it impossible to map
-  locations back to the AST to be changed.
+- This is the "process" step after parsing the input
+- It is the reason we have src_haskell{ghc-exactprint} and the exact
+  print annotations in GHC
+- Intention: allow the smallest changes possible, when applying a
+  change to the AST
 - But first lets go off at a tangent
 #+end_notes
 
@@ -716,12 +758,13 @@ data EpAnnComments = EpaComments
 #+end_src
 
 #+begin_notes
-- EpAnn is the "super SrcSpan" we use for locations
+- Lets talk about comments
+- src_haskell{EpAnn} is the "super src_haskell{SrcSpan}" we use for locations
 - The initial parsing is optimised for speed, you are not necessarily
   going to change things
 - Once you decide to move thing around, you need to decide which
   comments to bring along.
-- The comments constructors initially carry priorComments only, which
+- The comments constructors initially carry src_haskell{priorComments} only, which
   precede the given declarations.
 #+end_notes
 
@@ -798,7 +841,10 @@ foo False = 2
 #+begin_notes
 - src_haskell{FunBind} is weird
 - it combines all the equations for a particular function
-- each shows up as a src_haskell{Match}, which is self-contained
+- each shows up as a src_haskell{Match}, which is self-contained, and
+  is the original parsed src_haskell{FunBind} declaration
+- So we have a similar setup to the previous one, but they are all
+  part of the same src_haskell{FunBind}
 #+end_notes
 
 *** becomes
@@ -835,6 +881,10 @@ On FunBind following comments
 #+begin_notes
 - The first comment is as before
 - Rest are as per the comments
+- So we have prior and following comments for the funbind as a whole,
+  at the top level.
+- And each interior match, bar the first and last, has its own prior
+  and following comments.
 #+end_notes
 
 *** Produced by
@@ -865,16 +915,24 @@ class (Data t) => HasDecls t where
     replaceDecls :: t -> [LHsDecl GhcPs] -> t
 #+end_src
 
+Identity
+
+#+begin_src haskell
+exactPrint x === exactPrint (replaceDecls x (hsDecls x))
+#+end_src
+
 #+begin_notes
-- hasDecls
+- hsDecls
   - Return the 'HsDecl's that are directly enclosed in the given
     syntax phrase. They are always returned in the wrapped 'HsDecl'
     form, even if orginating in local decls. This is safe, as
     annotations never attach to the wrapper, only to the wrapped item.
 - replaceDecls
   - Replace the directly enclosed decl list by the given decl list. As
-    parto of replacing it will update list order annotations, and
+    part of replacing it will update list order annotations, and
     rebalance comments and other layout changes as needed.
+- And it should preserve the identity that replacing the decls you
+  just got should print the same.
 #+end_notes
 
 *** src_haskell{replaceDecls}
@@ -922,11 +980,15 @@ addLocaLDecl1 libdir top = do
 - Then we get the list of decls, broken into first, next and rest
   - In the source example there is a second function, so we can show
     the trailing comments
-- We then call modifyValD to do the work.
+- we balance comments betwen the first and second declaration
+- and  call modifyValD to do the work.
   - I will explain more in the next slides,
-  - but the key point is the lambda that receives the existing match
+  - but the key point is the lambda that receives the existing src_haskell{Match}
     local binds in src_haskell{ds} and prepends src_haskell{decl} to
     them
+- And then replace the modified top-level decls
+- ghc-exactprint old hands will notice that apart from parsing, all
+  the code is pure
 #+end_notes
 
 *** src_haskell{modifyValD}
@@ -949,7 +1011,8 @@ modifyValD
 #+end_src
 
 #+begin_notes
-- Modify a  src_haskell{FunBind} wrapped in a src_haskell{ValD}.
+- So lets look at src_haskell{modifyValD}
+- It modifies a  src_haskell{FunBind} wrapped in a src_haskell{ValD}.
 - The supplied src_haskell{SrcSpan} is used to identify the specific
   src_haskell{Match} to be transformed, for when there are multiple of
   them.
@@ -964,15 +1027,20 @@ modifyValD
 
 *** There is a lot going on under the hood
 - unpack the src_haskell{FunBind} for comments
-- extract the local binds, sorted according to the src_haskell{AnnSortKey}, as decls
-- Apply the function
-- When replacing, add or remove src_haskell{where} if it was empty or becomes empty
-- And update the src_haskell{AnnSortKey}
+- for the specific src_haskell{Match}
+  - extract the local binds
+  - sorted according to the src_haskell{AnnSortKey}
+  - as decls
+- apply the function
+- when replacing, add or remove src_haskell{where} if it was empty or becomes empty
+- update the src_haskell{AnnSortKey}
 - pack the src_haskell{FunBind} for comments
-- Note: it is up to the user-supplied function to call
-  src_haskell{balanceComments} on the provided decls if needed.
 
 #+begin_notes
+- We did not go into src_haskell{AnnSortKey}. It stores the tags
+  giving the merge order.
+- note: it is up to the user-supplied function to call
+  src_haskell{balanceComments} on the provided decls if needed.
 - I will explain about packing and unpacking funbinds next
 #+end_notes
 
@@ -983,10 +1051,10 @@ modifyValD
 #+begin_notes
 - As I explained earlier, if we are working with a
   src_haskell{FunBind} in a list of src_haskell{Decl}s, we need to be
-  able to work with its leading and trailing comments, for example to
+  able to work with its prior and following comments, for example to
   balance comments
 - But a src_haskell{FunBind} is just a container for self-contained
-  src_haskell{Match}es, and those are the things we print
+  src_haskell{Match}es, and those are the things we modify
 - So src_haskell{unpackFunBind} takes these src_haskell{ValD} level
   prior and following comments and pushes them down to the first and
   last src_haskell{Match} respectively
@@ -1047,6 +1115,8 @@ exactPrint :: ExactPrint ast => ast -> String
 
 #+begin_notes
 - And now on to some more tangential things, as we head toward wrapping
+- <READ SLIDE>
+- This lets you use the Renamer output for the parse source
 - I am a bit out of the loop at the moment, this functionality may
   already exist somewhere
 #+end_notes
@@ -1098,9 +1168,11 @@ exactPrint :: ExactPrint ast => ast -> String
 
 * End
 
+This presentation: https://alanz.github.io/hew2024/
+
 - https://github.com/alanz/ghc-exactprint
 - [[https://gist.github.com/alanz/e127e7561ddf1cfeb07fbdee9a966794][Exact Print Annotations GHC 9.10 changes]]
 - [[https://github.com/ghc-proposals/ghc-proposals/pull/616][GHC CPP proposal]]
-
+- Slides written in emacs [[https://orgmode.org/][org-mode]] using [[https://gitlab.com/oer/org-re-reveal][org-re-reveal]] for [[https://revealjs.com/][reveal.js]] 
 
 Questions?
