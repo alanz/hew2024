@@ -1123,9 +1123,9 @@ exactPrint :: ExactPrint ast => ast -> String
 
 * Future
 - Fixity info
-- src_haskell{GHC_CPP}
 - Free vars?
 - Easy Export of Name table for lookup?
+- src_haskell{GHC_CPP}
 - ghc-exactprint API
   - currently provisional
   - should it be split?
