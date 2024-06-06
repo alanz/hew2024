@@ -361,7 +361,6 @@ Our next problem is how to order things
 #+begin_notes
 - The final item in this section
 - The image shows a trailing semi, with a red link to the preceding declaration
-- The ast can be seen as an assembly of nested, ordered, self-contained boxes.
 - The self-contained principle says that everything fits inside the
   AST Element span.
 - So trailing items cannot be in the span, but are associated with it.
@@ -587,8 +586,8 @@ data AddEpAnn = AddEpAnn AnnKeywordId EpaLocation
 
 #+begin_notes
 - This is the original mechanism for capturing keywords.
-- It is an enumeration of what it is, together with its location.
-- It tells us what to print, where
+- It is an enumeration of what the keyword is
+- src_haskell{AddEpAnn} tells us what to print, where
 #+end_notes
 
 *** src_haskell{EpToken}
@@ -610,7 +609,7 @@ getEpTokenString (EpTok _) = Just $ symbolVal (Proxy @tok)
 #+end_src
 
 #+begin_notes
-- This is the new mechanism. It ie likely to supplant
+- This is the new mechanism. It is likely to supplant
   src_haskell{AddEpAnn} and src_haskell{AnnKeywordId}
 - Apart from src_haskell{NoEpTok}, this is isomorphic to
   src_haskell{AddEpAnn}, in that it tells us what to print, and where
@@ -759,7 +758,8 @@ data EpAnnComments = EpaComments
 
 #+begin_notes
 - Lets talk about comments
-- src_haskell{EpAnn} is the "super src_haskell{SrcSpan}" we use for locations
+- src_haskell{EpAnn} is the "super src_haskell{SrcSpan}" we use for
+  locations, and it contains comments.
 - The initial parsing is optimised for speed, you are not necessarily
   going to change things
 - Once you decide to move thing around, you need to decide which
@@ -1141,13 +1141,15 @@ exactPrint :: ExactPrint ast => ast -> String
   - In GHC the tree is re-written in the the Renamer to properly
     reflect the actual precedences
   - And it is vital to work with a rewritten tree.
-  - We have code dealing with it in hlint, retrie, probably a few more.
+  - We have code dealing with it in hlint, retrie (via hse), probably
+    a few more.
     - And this is best effort, using known built in fixities
   - Solution is
     - put this fixity processing in one place
     - improve it, be making it available from GHC
 - GHC CPP
   - The ghc-exactprint processing is very poor.
+  - retrie has an innovative approach. Process all versions and combine
   - CPP is too powerful, it processes directives in comments, trailing backslashes, etc
   - I am convinced >90% of usage could be captured with a reduced power option
   - I have a GHC proposal, intend taking it forward real soon now
@@ -1170,6 +1172,7 @@ exactPrint :: ExactPrint ast => ast -> String
 
 This presentation: https://alanz.github.io/hew2024/
 
+[[./url-qr-code.gif]]
 - https://github.com/alanz/ghc-exactprint
 - [[https://gist.github.com/alanz/e127e7561ddf1cfeb07fbdee9a966794][Exact Print Annotations GHC 9.10 changes]]
 - [[https://github.com/ghc-proposals/ghc-proposals/pull/616][GHC CPP proposal]]
